@@ -880,9 +880,15 @@
     <div class="stats-row">
       <div class="stat-chip present"><div class="num" id="att-present">0</div><div class="lbl">נוכחים</div></div>
       <div class="stat-chip absent"><div class="num" id="att-absent">33</div><div class="lbl">נעדרים</div></div>
-      <div class="stat-chip total"><div class="num">33</div><div class="lbl">סה"כ</div></div>
+      <div class="stat-chip total"><div class="num" id="att-total">33</div><div class="lbl">סה"כ</div></div>
     </div>
     <div class="children-list" id="attendance-list"></div>
+
+    <!-- היסטוריה -->
+    <div style="margin-top:24px">
+      <div style="font-size:15px;font-weight:700;color:var(--dark);margin-bottom:12px">📅 היסטוריית נוכחות</div>
+      <div id="attendance-history"></div>
+    </div>
   </div>
 </div>
 
@@ -1614,7 +1620,7 @@ const MONTHS = [
 
 // ════════ STATE ════════
 let attendance = {};        // dateKey -> {childId -> true/false}
-let dailyUpdates = {};      // id -> {mood,food,sleep,sleepTime,notes}
+let dailyUpdates = {};      // dateKey -> {childId -> {mood,food,sleep,sleepTime,notes}}
 let childProgress = {};     // childId -> {exerciseId -> 0/1/2/3}
 let monthlyArchive = {};    // child_id -> [{month, text}]
 let teacherNotes = {};      // exerciseId -> string
@@ -1686,6 +1692,12 @@ function setTodayDate() {
 // ════════ ATTENDANCE ════════
 function getAttendanceKey() { return todayKey(); }
 
+function getTodayUpdates() {
+  const key = todayKey();
+  if (!dailyUpdates[key]) dailyUpdates[key] = {};
+  return dailyUpdates[key];
+}
+
 function getTodayAttendance() {
   const key = getAttendanceKey();
   if (!attendance[key]) attendance[key] = {};
@@ -1733,6 +1745,47 @@ function updateAttendanceStats() {
   const present = Object.values(todayAtt).filter(Boolean).length;
   document.getElementById('att-present').textContent = present;
   document.getElementById('att-absent').textContent = CHILDREN.length - present;
+  document.getElementById('att-total').textContent = CHILDREN.length;
+  renderAttendanceHistory();
+}
+
+function renderAttendanceHistory() {
+  const hist = document.getElementById('attendance-history');
+  if (!hist) return;
+  const months = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+  const today = todayKey();
+  const keys = Object.keys(attendance).filter(k => k !== today && Object.keys(attendance[k]||{}).length > 0).sort().reverse();
+  if (!keys.length) {
+    hist.innerHTML = '<div style="font-size:13px;color:var(--light-text);text-align:center;padding:12px">אין היסטוריה עדיין</div>';
+    return;
+  }
+  hist.innerHTML = '';
+  keys.slice(0,14).forEach(key => {
+    const [y,m,d] = key.split('-');
+    const dateLabel = `${parseInt(d)} ${months[parseInt(m)-1]} ${y}`;
+    const dayAtt = attendance[key] || {};
+    const presentCount = Object.values(dayAtt).filter(Boolean).length;
+    const presentNames = CHILDREN.filter(c => dayAtt[c.id]).map(c => c.name);
+    const absentNames = CHILDREN.filter(c => !dayAtt[c.id]).map(c => c.name);
+
+    const el = document.createElement('div');
+    el.style.cssText = 'background:var(--card-bg);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:8px;box-shadow:var(--shadow);cursor:pointer';
+    el.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div style="font-size:14px;font-weight:700">${dateLabel}</div>
+        <div style="font-size:13px;color:var(--sage);font-weight:600">✓ ${presentCount} נוכחים</div>
+      </div>
+      <div id="hist-detail-${key}" style="display:none;margin-top:10px">
+        ${presentNames.length ? `<div style="font-size:12px;color:var(--sage);margin-bottom:4px">✓ ${presentNames.join(', ')}</div>` : ''}
+        ${absentNames.length ? `<div style="font-size:12px;color:var(--terracotta)">✗ ${absentNames.join(', ')}</div>` : ''}
+      </div>
+    `;
+    el.onclick = () => {
+      const det = document.getElementById(`hist-detail-${key}`);
+      det.style.display = det.style.display === 'none' ? 'block' : 'none';
+    };
+    hist.appendChild(el);
+  });
 }
 
 // ════════ UPDATES ════════
@@ -1740,7 +1793,7 @@ function renderUpdates() {
   const list = document.getElementById('updates-list');
   list.innerHTML = '';
   CHILDREN.forEach(child => {
-    const upd = dailyUpdates[child.id];
+    const upd = getTodayUpdates()[child.id];
     const card = document.createElement('div');
     card.className = 'child-card';
     card.style.cursor = 'pointer';
@@ -1773,7 +1826,7 @@ function openUpdateSheet(childId) {
   document.getElementById('update-notes').value = '';
   currentMood = null; currentFood = null; currentSleep = null;
 
-  const upd = dailyUpdates[childId];
+  const upd = getTodayUpdates()[childId];
   if (upd) {
     if (upd.mood) {
       currentMood = upd.mood;
@@ -1825,7 +1878,8 @@ function selectSleep(val, btn) {
 
 function saveUpdate() {
   if (currentChildId) {
-    dailyUpdates[currentChildId] = {
+    const todayUpd = getTodayUpdates();
+    todayUpd[currentChildId] = {
       mood: currentMood, food: currentFood, sleep: currentSleep,
       sleepTime: document.getElementById('sleep-duration').value,
       notes: document.getElementById('update-notes').value,
@@ -2219,7 +2273,7 @@ function openMonthlyChild(child) {
 
 function renderMonthlySummary(child) {
   const prog = childProgress[child.id] || {};
-  const upd = dailyUpdates[child.id] || {};
+  const upd = (getTodayUpdates ? getTodayUpdates()[child.id] : null) || {};
 
   // exercises
   const masteredNames = [], practicingNames = [], introducedNames = [];
