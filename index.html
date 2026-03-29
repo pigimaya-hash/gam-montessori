@@ -899,8 +899,19 @@
     <div class="topbar-title">עדכונים יומיים</div>
   </div>
   <div class="content">
-    <p style="font-size:14px;color:var(--light-text);margin-bottom:14px;">לחץ/י על ילד כדי להזין עדכון</p>
+    <p style="font-size:14px;color:var(--light-text);margin-bottom:14px;">לחץ/י על ילד כדי להזין עדכון • לחיצה ארוכה להיסטוריה</p>
     <div class="children-list" id="updates-list"></div>
+  </div>
+</div>
+
+<!-- ════════════════ CHILD HISTORY ════════════════ -->
+<div class="screen" id="screen-child-history">
+  <div class="topbar">
+    <button class="back-btn" onclick="navigate('updates')">›</button>
+    <div class="topbar-title" id="child-history-title">היסטוריה</div>
+  </div>
+  <div class="content">
+    <div id="child-history-list"></div>
   </div>
 </div>
 
@@ -1800,16 +1811,66 @@ function renderUpdates() {
     const hasMood = upd && upd.mood;
     const moodEmojis = {great:'😄',good:'🙂',ok:'😐',sad:'😔',angry:'😤'};
     const moodEmoji = hasMood ? moodEmojis[upd.mood] : '';
+
+    // ספירת ימים עם עדכון
+    const histCount = Object.keys(dailyUpdates).filter(k => dailyUpdates[k][child.id]?.mood).length;
+
     card.innerHTML = `
       <div class="child-avatar" style="background:${child.color}">${child.name.charAt(0)}</div>
       <div style="flex:1">
         <div class="child-name">${child.name}</div>
-        <div class="child-age">${hasMood ? `מצב רוח: ${moodEmoji}` : 'לא עודכן'}</div>
+        <div class="child-age">${hasMood ? `מצב רוח: ${moodEmoji}` : 'לא עודכן היום'}</div>
       </div>
-      <span style="font-size:20px;">${hasMood ? '✅' : '➕'}</span>
+      <div style="display:flex;gap:8px;align-items:center">
+        ${histCount > 0 ? `<button onclick="event.stopPropagation();openChildHistory(${child.id})" style="background:var(--sand);border:none;border-radius:10px;padding:6px 10px;font-size:11px;font-weight:600;color:var(--mid);cursor:pointer;font-family:'Heebo',sans-serif">📋 ${histCount}</button>` : ''}
+        <span style="font-size:20px;">${hasMood ? '✅' : '➕'}</span>
+      </div>
     `;
     card.onclick = () => openUpdateSheet(child.id);
     list.appendChild(card);
+  });
+}
+
+function openChildHistory(childId) {
+  const child = CHILDREN.find(c => c.id === childId);
+  if (!child) return;
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-child-history').classList.add('active');
+  document.getElementById('child-history-title').textContent = `📋 ${child.name}`;
+
+  const months = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+  const moodEmojis = {great:'😄',good:'🙂',ok:'😐',sad:'😔',angry:'😤'};
+  const moodLabels = {great:'מצוין',good:'טוב',ok:'בסדר',sad:'עצוב',angry:'כועס'};
+  const foodLabels = {all:'הכל',most:'רוב',half:'חצי',little:'מעט',none:'לא אכל/ה'};
+
+  const keys = Object.keys(dailyUpdates)
+    .filter(k => dailyUpdates[k][childId]?.mood)
+    .sort().reverse();
+
+  const list = document.getElementById('child-history-list');
+  list.innerHTML = '';
+
+  if (!keys.length) {
+    list.innerHTML = '<div style="text-align:center;color:var(--light-text);padding:20px">אין עדכונים קודמים</div>';
+    return;
+  }
+
+  keys.forEach(key => {
+    const upd = dailyUpdates[key][childId];
+    const [y,m,d] = key.split('-');
+    const dateLabel = `${parseInt(d)} ${months[parseInt(m)-1]} ${y}`;
+    const el = document.createElement('div');
+    el.style.cssText = 'background:var(--card-bg);border-radius:var(--radius);padding:16px;margin-bottom:10px;box-shadow:var(--shadow)';
+    el.innerHTML = `
+      <div style="font-size:14px;font-weight:700;color:var(--dark);margin-bottom:10px">📅 ${dateLabel}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px">
+        ${upd.mood ? `<div style="background:var(--sand);border-radius:10px;padding:8px 12px;font-size:13px">${moodEmojis[upd.mood]} ${moodLabels[upd.mood]}</div>` : ''}
+        ${upd.food ? `<div style="background:var(--sand);border-radius:10px;padding:8px 12px;font-size:13px">🍽️ ${foodLabels[upd.food]||upd.food}</div>` : ''}
+        ${upd.sleep ? `<div style="background:var(--sand);border-radius:10px;padding:8px 12px;font-size:13px">💤 ${upd.sleep==='yes'?`ישן/ה ${upd.sleepTime||''}` : 'לא ישן/ה'}</div>` : ''}
+      </div>
+      ${upd.notes ? `<div style="margin-top:8px;font-size:13px;color:var(--mid);background:var(--sand);border-radius:10px;padding:8px 12px">📝 ${upd.notes}</div>` : ''}
+    `;
+    list.appendChild(el);
   });
 }
 
