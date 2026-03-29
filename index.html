@@ -1613,7 +1613,7 @@ const MONTHS = [
 ];
 
 // ════════ STATE ════════
-let attendance = {};        // id -> true/false
+let attendance = {};        // dateKey -> {childId -> true/false}
 let dailyUpdates = {};      // id -> {mood,food,sleep,sleepTime,notes}
 let childProgress = {};     // childId -> {exerciseId -> 0/1/2/3}
 let monthlyArchive = {};    // child_id -> [{month, text}]
@@ -1670,7 +1670,8 @@ function navigate(screen) {
 
 // ════════ HOME ════════
 function updateHomeSummary() {
-  const count = Object.values(attendance).filter(Boolean).length;
+  const todayAtt = getTodayAttendance ? getTodayAttendance() : {};
+  const count = Object.values(todayAtt).filter(Boolean).length;
   document.getElementById('present-summary').textContent = count;
 }
 
@@ -1683,11 +1684,27 @@ function setTodayDate() {
 }
 
 // ════════ ATTENDANCE ════════
+function getAttendanceKey() { return todayKey(); }
+
+function getTodayAttendance() {
+  const key = getAttendanceKey();
+  if (!attendance[key]) attendance[key] = {};
+  return attendance[key];
+}
+
 function renderAttendance() {
+  const todayAtt = getTodayAttendance();
   const list = document.getElementById('attendance-list');
   list.innerHTML = '';
+  const d = new Date();
+  const days = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+  const months = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+  const dateDiv = document.createElement('div');
+  dateDiv.style.cssText = 'font-size:13px;color:var(--light-text);margin-bottom:12px;text-align:center;font-weight:600';
+  dateDiv.textContent = `יום ${days[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]}`;
+  list.appendChild(dateDiv);
   CHILDREN.forEach(child => {
-    const present = attendance[child.id] || false;
+    const present = todayAtt[child.id] || false;
     const card = document.createElement('div');
     card.className = `child-card ${present ? 'present' : 'absent'}`;
     card.innerHTML = `
@@ -1705,15 +1722,17 @@ function renderAttendance() {
 }
 
 function toggleAttendance(id) {
-  attendance[id] = !attendance[id];
+  const todayAtt = getTodayAttendance();
+  todayAtt[id] = !todayAtt[id];
   saveAll();
   renderAttendance();
 }
 
 function updateAttendanceStats() {
-  const present = Object.values(attendance).filter(Boolean).length;
+  const todayAtt = getTodayAttendance();
+  const present = Object.values(todayAtt).filter(Boolean).length;
   document.getElementById('att-present').textContent = present;
-  document.getElementById('att-absent').textContent = 33 - present;
+  document.getElementById('att-absent').textContent = CHILDREN.length - present;
 }
 
 // ════════ UPDATES ════════
