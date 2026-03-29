@@ -4,6 +4,19 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>מקום לגדול</title>
+
+<!-- PWA -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="מקום לגדול">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#C4714F">
+
+<!-- אייקון לאייפון/אייפד -->
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%23C4714F'/%3E%3Ctext y='.9em' font-size='72' x='50%25' text-anchor='middle'%3E🌿%3C/text%3E%3C/svg%3E">
+
+<!-- Splash screen colors -->
+<meta name="msapplication-TileColor" content="#C4714F">
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -830,6 +843,14 @@
         </div>
         <span class="menu-arrow">‹</span>
       </button>
+      <button class="menu-card" onclick="navigate('children')">
+        <div class="menu-icon" style="background:#F0F4FF">⚙️</div>
+        <div class="menu-info">
+          <div class="menu-label">ניהול ילדים</div>
+          <div class="menu-desc">הוספה, עריכה, ארכיון</div>
+        </div>
+        <span class="menu-arrow">‹</span>
+      </button>
       <button class="menu-card" onclick="navigate('calendar')">
         <div class="menu-icon" style="background:#E8F0FF">📅</div>
         <div class="menu-info">
@@ -1010,6 +1031,12 @@
         <button class="back-to-list-btn" onclick="backToMonthlyList()">← חזרה</button>
       </div>
 
+      <!-- סיכום נתונים -->
+      <div id="monthly-summary-section" style="background:var(--card-bg);border-radius:var(--radius);padding:16px;margin-bottom:16px;box-shadow:var(--shadow)">
+        <div style="font-size:15px;font-weight:700;margin-bottom:12px;color:var(--dark)">📊 סיכום נתוני החודש</div>
+        <div id="monthly-summary-content"></div>
+      </div>
+
       <button class="generate-btn" id="generate-btn" onclick="generateUpdate()">
         ✨ צרי טיוטה עם AI
       </button>
@@ -1022,11 +1049,48 @@
       <div id="monthly-edit-section" style="display:none">
         <div style="font-size:13px;color:var(--mid);margin-bottom:8px;font-weight:600">✏️ עירכי את הטיוטה לפני השליחה:</div>
         <textarea class="monthly-textarea" id="monthly-draft"></textarea>
-        <button class="send-whatsapp-btn" onclick="sendMonthlyWhatsapp()" style="margin-top:12px">
+        <button class="send-whatsapp-btn" onclick="sendMonthlyWhatsappAndSave()" style="margin-top:12px">
           📤 שלח לווטסאפ של ההורים
         </button>
       </div>
+
+      <!-- ארכיון עדכונים חודשיים -->
+      <div style="margin-top:20px">
+        <div style="font-size:15px;font-weight:700;margin-bottom:12px;color:var(--dark)">🗂️ ארכיון עדכונים קודמים</div>
+        <div id="monthly-archive-list"></div>
+      </div>
+
     </div>
+
+  </div>
+</div>
+
+<!-- ════════════════ CHILDREN MANAGEMENT ════════════════ -->
+<div class="screen" id="screen-children">
+  <div class="topbar">
+    <button class="back-btn" onclick="navigate('home')">›</button>
+    <div class="topbar-title">⚙️ ניהול ילדים</div>
+  </div>
+  <div class="content">
+
+    <!-- הוספת ילד -->
+    <div class="add-reminder-card">
+      <div class="add-reminder-title">➕ הוספת ילד/ה חדש/ה</div>
+      <div class="reminder-form-row">
+        <input class="reminder-text-input" type="text" id="new-child-name" placeholder="שם הילד/ה...">
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0" id="color-picker-row">
+      </div>
+      <button class="save-btn" onclick="addNewChild()">הוסיפי ילד/ה</button>
+    </div>
+
+    <!-- רשימת ילדים פעילים -->
+    <div style="font-size:15px;font-weight:700;margin-bottom:10px;color:var(--dark)">👶 ילדים פעילים</div>
+    <div id="manage-children-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px"></div>
+
+    <!-- ארכיון ילדים שעזבו -->
+    <div style="font-size:15px;font-weight:700;margin-bottom:10px;color:var(--light-text)">🗄️ ילדים שעזבו</div>
+    <div id="archived-children-list" style="display:flex;flex-direction:column;gap:8px"></div>
 
   </div>
 </div>
@@ -1213,7 +1277,7 @@
 // ════════ DATA ════════
 const COLORS = ['#C4714F','#7A9E7E','#6B9EB5','#B07DB5','#D4A44C','#E87A6B','#5B8FA8','#8BAF6E'];
 
-const CHILDREN = [
+let CHILDREN = [
   {id:1,name:'אדם דריימן',age:'',color:COLORS[0]},
   {id:2,name:'אדם שרידן',age:'',color:COLORS[1]},
   {id:3,name:'אילון',age:'',color:COLORS[2]},
@@ -1248,6 +1312,7 @@ const CHILDREN = [
   {id:32,name:'תום',age:'',color:COLORS[7]},
   {id:33,name:'תמרה',age:'',color:COLORS[0]},
 ];
+let archivedChildren = []; // ילדים שעזבו
 
 const AREAS = [
   {id:'language', name:'שפה', icon:'📖', color:'#6B9EB5',
@@ -1546,6 +1611,7 @@ const MONTHS = [
 let attendance = {};        // id -> true/false
 let dailyUpdates = {};      // id -> {mood,food,sleep,sleepTime,notes}
 let childProgress = {};     // childId -> {exerciseId -> 0/1/2/3}
+let monthlyArchive = {};    // child_id -> [{month, text}]
 let teacherNotes = {};      // exerciseId -> string
 let currentChildId = null;
 let currentMonthIdx = null;
@@ -1582,6 +1648,9 @@ function navigate(screen) {
   } else if (screen === 'parents') {
     document.getElementById('screen-parents').classList.add('active');
     renderParentsScreen();
+  } else if (screen === 'children') {
+    document.getElementById('screen-children').classList.add('active');
+    renderManageChildren();
   } else if (screen === 'calendar') {
     document.getElementById('screen-calendar').classList.add('active');
     renderCalendar();
@@ -2117,9 +2186,98 @@ function openMonthlyChild(child) {
   const mastered = Object.values(prog).filter(v => v === 3).length;
   const practicing = Object.values(prog).filter(v => v === 2).length;
   const introduced = Object.values(prog).filter(v => v === 1).length;
-  const updCount = Object.values(dailyUpdates).filter(u => u).length;
   document.getElementById('monthly-data-summary').textContent =
     `✅ ${mastered} שלט/ה · ⭐ ${practicing} מתאמן/ת · 🌱 ${introduced} הוצג`;
+
+  renderMonthlySummary(child);
+  renderMonthlyArchive(child);
+}
+
+function renderMonthlySummary(child) {
+  const prog = childProgress[child.id] || {};
+  const upd = dailyUpdates[child.id] || {};
+
+  // exercises
+  const masteredNames = [], practicingNames = [], introducedNames = [];
+  AREAS.forEach(area => {
+    area.folders.forEach(folder => {
+      folder.exercises.forEach(ex => {
+        const level = prog[ex.id] || 0;
+        if (level === 3) masteredNames.push(ex.name);
+        else if (level === 2) practicingNames.push(ex.name);
+        else if (level === 1) introducedNames.push(ex.name);
+      });
+    });
+  });
+
+  // mood stats
+  const moodEmojis = {great:'😄',good:'🙂',ok:'😐',sad:'😔',angry:'😤'};
+  const moodLabel = upd.mood ? (moodEmojis[upd.mood] + ' ' + upd.mood) : 'לא הוזן';
+  const foodLabel = upd.food || 'לא הוזן';
+  const sleepLabel = upd.sleep ? (upd.sleep === 'yes' ? `ישן/ה ${upd.sleepTime || ''}` : 'לא ישן/ה') : 'לא הוזן';
+  const notes = upd.notes || '';
+
+  const el = document.getElementById('monthly-summary-content');
+  el.innerHTML = `
+    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+      <div style="flex:1;min-width:80px;background:var(--sand);border-radius:10px;padding:10px;text-align:center">
+        <div style="font-size:20px">✅</div>
+        <div style="font-size:18px;font-weight:800;color:var(--sage)">${masteredNames.length}</div>
+        <div style="font-size:11px;color:var(--light-text)">שלט/ה</div>
+      </div>
+      <div style="flex:1;min-width:80px;background:var(--sand);border-radius:10px;padding:10px;text-align:center">
+        <div style="font-size:20px">⭐</div>
+        <div style="font-size:18px;font-weight:800;color:var(--sky)">${practicingNames.length}</div>
+        <div style="font-size:11px;color:var(--light-text)">מתאמן/ת</div>
+      </div>
+      <div style="flex:1;min-width:80px;background:var(--sand);border-radius:10px;padding:10px;text-align:center">
+        <div style="font-size:20px">🌱</div>
+        <div style="font-size:18px;font-weight:800;color:var(--terracotta)">${introducedNames.length}</div>
+        <div style="font-size:11px;color:var(--light-text)">הוצג</div>
+      </div>
+      <div style="flex:1;min-width:80px;background:var(--sand);border-radius:10px;padding:10px;text-align:center">
+        <div style="font-size:20px">😊</div>
+        <div style="font-size:13px;font-weight:700">${moodLabel}</div>
+        <div style="font-size:11px;color:var(--light-text)">מצב רוח</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:8px">
+      <div style="flex:1;background:var(--sand);border-radius:10px;padding:10px">
+        <span style="font-size:13px;font-weight:600">🍽️ אוכל: </span>
+        <span style="font-size:13px;color:var(--mid)">${foodLabel}</span>
+      </div>
+      <div style="flex:1;background:var(--sand);border-radius:10px;padding:10px">
+        <span style="font-size:13px;font-weight:600">💤 שינה: </span>
+        <span style="font-size:13px;color:var(--mid)">${sleepLabel}</span>
+      </div>
+    </div>
+    ${masteredNames.length ? `<div style="background:var(--sand);border-radius:10px;padding:10px;margin-bottom:8px"><div style="font-size:12px;font-weight:700;color:var(--sage);margin-bottom:4px">✅ שלט/ה ב:</div><div style="font-size:12px;color:var(--mid);line-height:1.6">${masteredNames.join(' · ')}</div></div>` : ''}
+    ${practicingNames.length ? `<div style="background:var(--sand);border-radius:10px;padding:10px;margin-bottom:8px"><div style="font-size:12px;font-weight:700;color:var(--sky);margin-bottom:4px">⭐ בתהליך:</div><div style="font-size:12px;color:var(--mid);line-height:1.6">${practicingNames.join(' · ')}</div></div>` : ''}
+    ${notes ? `<div style="background:var(--sand);border-radius:10px;padding:10px"><div style="font-size:12px;font-weight:700;color:var(--mid);margin-bottom:4px">📝 הערות:</div><div style="font-size:12px;color:var(--mid)">${notes}</div></div>` : ''}
+  `;
+}
+
+function renderMonthlyArchive(child) {
+  const archive = document.getElementById('monthly-archive-list');
+  const key = `child_${child.id}`;
+  const history = (monthlyArchive[key] || []).slice().reverse();
+  if (!history.length) {
+    archive.innerHTML = '<div style="font-size:13px;color:var(--light-text);text-align:center;padding:12px">אין עדכונים קודמים עדיין</div>';
+    return;
+  }
+  archive.innerHTML = '';
+  history.forEach(entry => {
+    const item = document.createElement('div');
+    item.style.cssText = 'background:var(--card-bg);border-radius:var(--radius-sm);padding:12px;margin-bottom:8px;box-shadow:var(--shadow)';
+    item.innerHTML = `
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <span style="font-size:16px">📄</span>
+        <span style="font-size:13px;font-weight:700;color:var(--dark)">${entry.month}</span>
+      </div>
+      <div style="font-size:12px;color:var(--mid);line-height:1.5">${entry.text.substring(0,120)}...</div>
+    `;
+    archive.appendChild(item);
+  });
 }
 
 function backToMonthlyList() {
@@ -2222,13 +2380,29 @@ async function generateUpdate() {
   }
 }
 
-function sendMonthlyWhatsapp() {
+function sendMonthlyWhatsappAndSave() {
   const text = document.getElementById('monthly-draft').value;
   if (!text.trim()) return;
   const child = currentMonthlyChild;
+
+  // שמירה לארכיון
+  const key = `child_${child.id}`;
+  if (!monthlyArchive[key]) monthlyArchive[key] = [];
+  const d = new Date();
+  const monthNames = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+  const monthLabel = `${monthNames[d.getMonth()]} ${d.getFullYear()}`;
+  // הימנע מכפילות באותו חודש
+  monthlyArchive[key] = monthlyArchive[key].filter(e => e.month !== monthLabel);
+  monthlyArchive[key].push({ month: monthLabel, text });
+  saveAll();
+  renderMonthlyArchive(child);
+
   const msg = `*עדכון חודשי אישי — ${child.name}*\nמ"מקום לגדול" 🌿\n\n${text}`;
   window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+  showToast('העדכון נשמר בארכיון ✓');
 }
+
+function sendMonthlyWhatsapp() { sendMonthlyWhatsappAndSave(); }
 
 // ════════ PARENTS UPDATES ════════
 let parentsData = {};   // weekKey -> { text, photos: [base64...] }
@@ -2357,6 +2531,93 @@ function showLoadingOverlay() {
 }
 function hideLoadingOverlay() {
   document.getElementById('loading-overlay').style.display = 'none';
+}
+
+// ════════ CHILDREN MANAGEMENT ════════
+let selectedNewColor = COLORS[0];
+
+function renderManageChildren() {
+  // color picker
+  const picker = document.getElementById('color-picker-row');
+  picker.innerHTML = '';
+  COLORS.forEach(c => {
+    const btn = document.createElement('div');
+    btn.style.cssText = `width:32px;height:32px;border-radius:50%;background:${c};cursor:pointer;border:3px solid ${c === selectedNewColor ? '#333' : 'transparent'};transition:all .15s`;
+    btn.onclick = () => { selectedNewColor = c; renderManageChildren(); };
+    picker.appendChild(btn);
+  });
+
+  // active children
+  const list = document.getElementById('manage-children-list');
+  list.innerHTML = '';
+  CHILDREN.forEach(child => {
+    const el = document.createElement('div');
+    el.style.cssText = 'background:var(--card-bg);border-radius:var(--radius);padding:14px 16px;display:flex;align-items:center;gap:12px;box-shadow:var(--shadow)';
+    el.innerHTML = `
+      <div style="width:42px;height:42px;border-radius:50%;background:${child.color};display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:18px;flex-shrink:0">${child.name.charAt(0)}</div>
+      <div style="flex:1;font-size:16px;font-weight:600">${child.name}</div>
+      <button onclick="archiveChild(${child.id})" style="background:#FFF0EC;border:none;border-radius:10px;padding:8px 12px;font-size:12px;font-weight:600;color:var(--terracotta);cursor:pointer;font-family:'Heebo',sans-serif">🗄️ העברי לארכיון</button>
+    `;
+    list.appendChild(el);
+  });
+
+  // archived children
+  const archList = document.getElementById('archived-children-list');
+  archList.innerHTML = '';
+  if (!archivedChildren.length) {
+    archList.innerHTML = '<div style="font-size:13px;color:var(--light-text);text-align:center;padding:12px">אין ילדים בארכיון</div>';
+    return;
+  }
+  archivedChildren.forEach(child => {
+    const el = document.createElement('div');
+    el.style.cssText = 'background:var(--card-bg);border-radius:var(--radius);padding:14px 16px;display:flex;align-items:center;gap:12px;box-shadow:var(--shadow);opacity:0.7';
+    el.innerHTML = `
+      <div style="width:42px;height:42px;border-radius:50%;background:${child.color};display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:18px;flex-shrink:0">${child.name.charAt(0)}</div>
+      <div style="flex:1">
+        <div style="font-size:16px;font-weight:600">${child.name}</div>
+        <div style="font-size:11px;color:var(--light-text)">עזב/ה ${child.leftDate || ''}</div>
+      </div>
+      <button onclick="restoreChild(${child.id})" style="background:#F1F9F2;border:none;border-radius:10px;padding:8px 12px;font-size:12px;font-weight:600;color:var(--sage);cursor:pointer;font-family:'Heebo',sans-serif">↩️ החזרי</button>
+    `;
+    list.appendChild(el);
+  });
+}
+
+function addNewChild() {
+  const name = document.getElementById('new-child-name').value.trim();
+  if (!name) { showToast('הכניסי שם'); return; }
+  const newId = Date.now();
+  CHILDREN.push({ id: newId, name, age: '', color: selectedNewColor });
+  document.getElementById('new-child-name').value = '';
+  saveAll();
+  renderManageChildren();
+  updateHomeSummary();
+  showToast(`${name} נוסף/ה ✓`);
+}
+
+function archiveChild(id) {
+  const idx = CHILDREN.findIndex(c => c.id === id);
+  if (idx === -1) return;
+  const child = CHILDREN[idx];
+  const d = new Date();
+  child.leftDate = `${d.getMonth()+1}/${d.getFullYear()}`;
+  archivedChildren.push(child);
+  CHILDREN.splice(idx, 1);
+  saveAll();
+  renderManageChildren();
+  showToast(`${child.name} הועבר/ה לארכיון`);
+}
+
+function restoreChild(id) {
+  const idx = archivedChildren.findIndex(c => c.id === id);
+  if (idx === -1) return;
+  const child = archivedChildren[idx];
+  delete child.leftDate;
+  CHILDREN.push(child);
+  archivedChildren.splice(idx, 1);
+  saveAll();
+  renderManageChildren();
+  showToast(`${child.name} הוחזר/ה לגן ✓`);
 }
 
 // ════════ CALENDAR ════════
@@ -2578,6 +2839,9 @@ async function saveAll() {
     parents: parentsData,
     calEvents,
     reminders,
+    monthlyArchive,
+    children: CHILDREN,
+    archivedChildren,
   };
   try {
     await fetch(`${FB_URL}/ganData.json`, {
@@ -2600,7 +2864,10 @@ async function loadAll() {
     if (data.meeting)       meetingData   = data.meeting;
     if (data.parents)       parentsData   = data.parents;
     if (data.calEvents)     calEvents     = data.calEvents;
-    if (data.reminders)     reminders     = data.reminders;
+    if (data.reminders)       reminders       = data.reminders;
+    if (data.monthlyArchive)  monthlyArchive  = data.monthlyArchive;
+    if (data.children)        CHILDREN        = data.children;
+    if (data.archivedChildren) archivedChildren = data.archivedChildren;
   } catch(e) { console.error('טעינה נכשלה', e); }
 }
 
