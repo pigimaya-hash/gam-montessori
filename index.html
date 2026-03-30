@@ -2541,11 +2541,21 @@ async function generateUpdate() {
 כתוב בגוף ראשון ("שמנו לב", "אנחנו רואים"), בגובה העיניים, ללא ז'רגון, עם חמימות. אל תמנה רשימות — כתוב פסקאות זורמות.`;
 
   try {
+    // טעינת המפתח מ-Firebase
+    const keyRes = await fetch(`${FB_URL}/ganData/config/apiKey.json`);
+    const apiKey = await keyRes.json();
+    if (!apiKey) {
+      document.getElementById('ai-loading').style.display = 'none';
+      document.getElementById('generate-btn').style.display = 'block';
+      showToast('שגיאה: מפתח API לא מוגדר');
+      return;
+    }
+
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': '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',
+        'x-api-key': apiKey,
         'anthropic-version': '2023-06-01',
         'anthropic-dangerous-direct-browser-access': 'true',
       },
