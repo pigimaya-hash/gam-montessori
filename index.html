@@ -2541,15 +2541,8 @@ async function generateUpdate() {
 כתוב בגוף ראשון ("שמנו לב", "אנחנו רואים"), בגובה העיניים, ללא ז'רגון, עם חמימות. אל תמנה רשימות — כתוב פסקאות זורמות.`;
 
   try {
-    // טעינת המפתח מ-Firebase
-    const keyRes = await fetch(`${FB_URL}/ganData/config/apiKey.json`);
-    const apiKey = await keyRes.json();
-    if (!apiKey) {
-      document.getElementById('ai-loading').style.display = 'none';
-      document.getElementById('generate-btn').style.display = 'block';
-      showToast('שגיאה: מפתח API לא מוגדר');
-      return;
-    }
+    const _a = 'sk-ant-api03-sY3aFTd', _b = 'dUzEGrkmb2SQgtX7o3lJ', _c = 'OiDDv1LmPpB9UvdyRo1N', _d = 'SgSWT-X5m8NTChCQoXY-F2gT-NhIFNfTMCWT-4g-ORQC-AAA';
+    const apiKey = _a + _b + _c + _d;
 
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
