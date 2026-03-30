@@ -2556,6 +2556,12 @@ async function generateUpdate() {
       }),
     });
     const data = await res.json();
+    if (data.error) {
+      document.getElementById('ai-loading').style.display = 'none';
+      document.getElementById('generate-btn').style.display = 'block';
+      showToast('שגיאה: ' + (data.error.message || 'נסי שוב'));
+      return;
+    }
     const text = data.content?.[0]?.text || 'לא הצלחנו לייצר טיוטה. נסי שוב.';
     document.getElementById('monthly-draft').value = text;
     document.getElementById('ai-loading').style.display = 'none';
