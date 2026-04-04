@@ -3056,7 +3056,20 @@ async function loadAll() {
     if (data.dailyUpdates)  dailyUpdates  = data.dailyUpdates;
     if (data.childProgress) childProgress = data.childProgress;
     if (data.teacherNotes)  teacherNotes  = data.teacherNotes;
-    if (data.months) data.months.forEach((acts, i) => { if (MONTHS[i]) MONTHS[i].activities = acts; });
+    if (data.months) data.months.forEach((acts, i) => {
+      if (MONTHS[i] && acts) {
+        // שמור רק פעילויות שנוספו ידנית (לא קיימות בקוד)
+        const codeTexts = MONTHS[i].activities.map(a => a.text);
+        const extraActs = acts.filter(a => a && a.text && !codeTexts.includes(a.text));
+        // עדכן סטטוס done לפעילויות מהקוד
+        MONTHS[i].activities = MONTHS[i].activities.map(codeAct => {
+          const saved = acts.find(a => a && a.text === codeAct.text);
+          return saved ? { ...codeAct, done: saved.done } : codeAct;
+        });
+        // הוסף פעילויות שנוספו ידנית
+        MONTHS[i].activities = [...MONTHS[i].activities, ...extraActs];
+      }
+    });
     if (data.meeting)       meetingData   = data.meeting;
     if (data.parents)       parentsData   = data.parents;
     if (data.calEvents)     calEvents     = data.calEvents;
