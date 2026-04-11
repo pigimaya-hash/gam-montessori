@@ -3069,10 +3069,7 @@ async function saveAll() {
 
 async function loadAll() {
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 8000);
-    const res = await fetch(`${FB_URL}/ganData.json`, { signal: controller.signal });
-    clearTimeout(timeout);
+    const res = await fetch(`${FB_URL}/ganData.json`);
     const data = await res.json();
     if (!data) return;
     if (data.attendance)    attendance    = data.attendance;
@@ -3101,6 +3098,7 @@ async function loadAll() {
     if (data.children)        CHILDREN        = data.children;
     if (data.archivedChildren) archivedChildren = data.archivedChildren;
   } catch(e) { console.error('טעינה נכשלה', e); }
+  hideLoadingOverlay();
 }
 
 // ════════ LOGIN ════════
