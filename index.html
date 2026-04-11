@@ -775,16 +775,6 @@
 </head>
 <body>
 
-<!-- ════════════════ LOGIN SCREEN ════════════════ -->
-<div id="login-screen" style="
-  position:fixed;inset:0;background:var(--cream);
-  display:flex;flex-direction:column;align-items:center;justify-content:center;
-  z-index:9999;padding:32px;
-">
-  <div style="font-size:56px;margin-bottom:16px;animation:float 3s ease-in-out infinite">🌿</div>
-  <div style="font-size:26px;font-weight:800;color:var(--dark);margin-bottom:6px">מקום לגדול</div>
-  <div style="font-size:14px;color:var(--light-text);margin-bottom:36px">כניסה לצוות המדריכות</div>
-
   <div style="width:100%;max-width:320px">
     <input id="login-password" type="password"
       placeholder="סיסמה..."
@@ -3115,13 +3105,7 @@ const TEAM_PASSWORD = '2016';
 const LOGIN_KEY = 'gan_login_expires';
 const LOGIN_DURATION = 7 * 24 * 60 * 60 * 1000; // שבוע במילישניות
 
-function checkLoginStatus() {
-  try {
-    const expires = localStorage.getItem(LOGIN_KEY);
-    if (expires && Date.now() < parseInt(expires)) {
-      document.getElementById('login-screen').style.display = 'none';
-      return true;
-    }
+function checkLoginStatus() { return true; }
   } catch(e) {
     // localStorage לא זמין — נסה sessionStorage
     try {
@@ -3133,7 +3117,7 @@ function checkLoginStatus() {
     } catch(e2) {}
   }
   return false;
-}
+*/ }
 
 function checkLogin() {
   const val = document.getElementById('login-password').value.trim();
