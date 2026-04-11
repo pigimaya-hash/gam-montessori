@@ -772,57 +772,24 @@
     font-weight: 600;
   }
 </style>
+<script>
+// בדיקה מוקדמת לפני טעינת הדף
+(function() {
+  try {
+    var key = 'gan_login_expires';
+    var exp = localStorage.getItem(key) || sessionStorage.getItem(key);
+    if (exp && Date.now() < parseInt(exp)) {
+      // מחוברים — הסתר מסך סיסמה
+      document.addEventListener('DOMContentLoaded', function() {
+        var s = document.getElementById('login-screen');
+        if (s) { s.style.display = 'none'; s.style.visibility = 'hidden'; }
+      });
+    }
+  } catch(e) {}
+})();
+</script>
 </head>
 <body>
-
-<!-- ════════════════ LOGIN SCREEN ════════════════ -->
-<div id="login-screen" style="
-  position:fixed;inset:0;background:var(--cream);
-  display:none;flex-direction:column;align-items:center;justify-content:center;
-  z-index:9999;padding:32px;
-">
-  <div style="font-size:56px;margin-bottom:16px;animation:float 3s ease-in-out infinite">🌿</div>
-  <div style="font-size:26px;font-weight:800;color:var(--dark);margin-bottom:6px">מקום לגדול</div>
-  <div style="font-size:14px;color:var(--light-text);margin-bottom:36px">כניסה לצוות המדריכות</div>
-  <div style="width:100%;max-width:320px">
-    <input id="login-password" type="password"
-      placeholder="סיסמה..."
-      style="width:100%;padding:16px;border:2px solid #EEE;border-radius:var(--radius);
-             font-size:18px;font-family:'Heebo',sans-serif;text-align:center;
-             background:white;color:var(--dark);margin-bottom:12px;direction:rtl;
-             box-sizing:border-box;"
-      onkeydown="if(event.key==='Enter') doLogin()">
-    <div id="login-error" style="color:var(--terracotta);font-size:13px;text-align:center;margin-bottom:12px;display:none">
-      סיסמה שגויה, נסי שוב
-    </div>
-    <button onclick="doLogin()" style="
-      width:100%;padding:16px;border-radius:var(--radius);
-      background:var(--terracotta);color:white;border:none;
-      font-size:17px;font-weight:700;cursor:pointer;
-      font-family:'Heebo',sans-serif;
-    ">כניסה</button>
-  </div>
-</div>
-
-  <div style="width:100%;max-width:320px">
-    <input id="login-password" type="password"
-      placeholder="סיסמה..."
-      style="width:100%;padding:16px;border:2px solid #EEE;border-radius:var(--radius);
-             font-size:18px;font-family:'Heebo',sans-serif;text-align:center;
-             background:white;color:var(--dark);margin-bottom:12px;direction:rtl;
-             box-sizing:border-box;"
-      onkeydown="if(event.key==='Enter') checkLogin()">
-    <div id="login-error" style="color:var(--terracotta);font-size:13px;text-align:center;margin-bottom:12px;display:none">
-      סיסמה שגויה, נסי שוב
-    </div>
-    <button onclick="checkLogin()" style="
-      width:100%;padding:16px;border-radius:var(--radius);
-      background:var(--terracotta);color:white;border:none;
-      font-size:17px;font-weight:700;cursor:pointer;
-      font-family:'Heebo',sans-serif;
-    ">כניסה</button>
-  </div>
-</div>
 
 <!-- ════════════════ HOME ════════════════ -->
 <div class="screen active" id="screen-home">
