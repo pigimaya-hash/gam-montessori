@@ -3092,7 +3092,10 @@ async function saveAll() {
 
 async function loadAll() {
   try {
-    const res = await fetch(`${FB_URL}/ganData.json`);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 6000); // 6 שניות מקסימום
+    const res = await fetch(`${FB_URL}/ganData.json`, { signal: controller.signal });
+    clearTimeout(timeoutId);
     const data = await res.json();
     if (!data) return;
     if (data.attendance)    attendance    = data.attendance;
