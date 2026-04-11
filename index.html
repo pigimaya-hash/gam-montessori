@@ -1813,9 +1813,18 @@ function renderAttendanceHistory() {
   if (!hist) return;
   const months = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
   const today = todayKey();
-  const keys = Object.keys(attendance).filter(k => k !== today && Object.keys(attendance[k]||{}).length > 0).sort().reverse();
+
+  // סנן רק מפתחות בפורמט תאריך (YYYY-MM-DD)
+  const keys = Object.keys(attendance).filter(k => {
+    if (k === today) return false;
+    const isDateKey = /^\d{4}-\d{2}-\d{2}$/.test(k);
+    if (!isDateKey) return false;
+    const dayData = attendance[k] || {};
+    return Object.values(dayData).some(v => v === true);
+  }).sort().reverse();
+
   if (!keys.length) {
-    hist.innerHTML = '<div style="font-size:13px;color:var(--light-text);text-align:center;padding:12px">אין היסטוריה עדיין</div>';
+    hist.innerHTML = '<div style="font-size:13px;color:var(--light-text);text-align:center;padding:12px">אין היסטוריה עדיין — תופיע מחר</div>';
     return;
   }
   hist.innerHTML = '';
@@ -1843,6 +1852,9 @@ function renderAttendanceHistory() {
       const det = document.getElementById(`hist-detail-${key}`);
       det.style.display = det.style.display === 'none' ? 'block' : 'none';
     };
+    hist.appendChild(el);
+  });
+}
     hist.appendChild(el);
   });
 }
@@ -3024,6 +3036,24 @@ function scheduleNotification(rem) {
 // ════════ FIREBASE SYNC ════════
 const FB_URL = 'https://makom-ligdol-a9f7d-default-rtdb.firebaseio.com';
 
+// סנכרון בזמן אמת
+function startRealtimeSync() {
+  const evtSource = new EventSource(`${FB_URL}/ganData/attendance.json`);
+  evtSource.addEventListener('put', e => {
+    try {
+      const d = JSON.parse(e.data);
+      if (d.data) {
+        attendance = d.data;
+        const activeScreen = document.querySelector('.screen.active');
+        if (activeScreen && activeScreen.id === 'screen-attendance') {
+          renderAttendance();
+        }
+        updateHomeSummary();
+      }
+    } catch(err) {}
+  });
+}
+
 async function saveAll() {
   const data = {
     attendance,
@@ -3117,6 +3147,7 @@ async function init() {
   renderAreas();
   renderMonths();
   updateHomeSummary();
+  startRealtimeSync();
 }
 init();
 </script>
