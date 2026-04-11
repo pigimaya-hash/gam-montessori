@@ -3116,18 +3116,30 @@ const LOGIN_KEY = 'gan_login_expires';
 const LOGIN_DURATION = 7 * 24 * 60 * 60 * 1000; // שבוע במילישניות
 
 function checkLoginStatus() {
-  const expires = localStorage.getItem(LOGIN_KEY);
-  if (expires && Date.now() < parseInt(expires)) {
-    document.getElementById('login-screen').style.display = 'none';
-    return true;
+  try {
+    const expires = localStorage.getItem(LOGIN_KEY);
+    if (expires && Date.now() < parseInt(expires)) {
+      document.getElementById('login-screen').style.display = 'none';
+      return true;
+    }
+  } catch(e) {
+    // localStorage לא זמין — נסה sessionStorage
+    try {
+      const expires = sessionStorage.getItem(LOGIN_KEY);
+      if (expires && Date.now() < parseInt(expires)) {
+        document.getElementById('login-screen').style.display = 'none';
+        return true;
+      }
+    } catch(e2) {}
   }
   return false;
 }
 
 function checkLogin() {
-  const val = document.getElementById('login-password').value;
+  const val = document.getElementById('login-password').value.trim();
   if (val === TEAM_PASSWORD) {
-    localStorage.setItem(LOGIN_KEY, Date.now() + LOGIN_DURATION);
+    try { localStorage.setItem(LOGIN_KEY, Date.now() + LOGIN_DURATION); } catch(e) {}
+    try { sessionStorage.setItem(LOGIN_KEY, Date.now() + LOGIN_DURATION); } catch(e) {}
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('login-error').style.display = 'none';
   } else {
