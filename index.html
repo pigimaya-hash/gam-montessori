@@ -3130,32 +3130,11 @@ const LOGIN_KEY = 'gan_login_expires';
 const LOGIN_DURATION = 7 * 24 * 60 * 60 * 1000;
 
 function checkLoginStatus() {
-  try {
-    const exp = localStorage.getItem(LOGIN_KEY) || sessionStorage.getItem(LOGIN_KEY);
-    if (exp && Date.now() < parseInt(exp)) {
-      document.getElementById('login-screen').style.display = 'none';
-      return true;
-    }
-  } catch(e) {}
-  // לא מחוברת — הצג מסך סיסמה
-  document.getElementById('login-screen').style.display = 'flex';
-  return false;
+  return true; // אין מסך סיסמה כרגע
 }
 
-function doLogin() {
-  const val = document.getElementById('login-password').value.trim();
-  if (val === TEAM_PASSWORD) {
-    try { localStorage.setItem(LOGIN_KEY, String(Date.now() + LOGIN_DURATION)); } catch(e) {}
-    try { sessionStorage.setItem(LOGIN_KEY, String(Date.now() + LOGIN_DURATION)); } catch(e) {}
-    document.getElementById('login-screen').style.display = 'none';
-  } else {
-    document.getElementById('login-error').style.display = 'block';
-    document.getElementById('login-password').value = '';
-    document.getElementById('login-password').focus();
-  }
-}
-
-function checkLogin() { doLogin(); }
+function doLogin() {}
+function checkLogin() {}
 
 // ════════ INIT ════════
 async function init() {
