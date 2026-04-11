@@ -3202,6 +3202,18 @@ async function init() {
   updateHomeSummary();
 }
 init();
+
+// הסתר מסך סיסמה מיד אם מחוברים (למניעת הבהוב)
+(function() {
+  try {
+    var key = 'gan_login_expires';
+    var exp = localStorage.getItem(key) || sessionStorage.getItem(key);
+    if (exp && Date.now() < parseInt(exp)) {
+      var s = document.getElementById('login-screen');
+      if (s) s.style.display = 'none';
+    }
+  } catch(e) {}
+})();
 </script>
 </body>
 </html>
