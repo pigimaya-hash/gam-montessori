@@ -3054,18 +3054,48 @@ const FB_URL = 'https://makom-ligdol-a9f7d-default-rtdb.firebaseio.com';
 
 // סנכרון בזמן אמת
 function startRealtimeSync() {
-  const evtSource = new EventSource(`${FB_URL}/ganData/attendance.json`);
+  // סנכרון כל הנתונים בזמן אמת
+  const evtSource = new EventSource(`${FB_URL}/ganData.json`);
   evtSource.addEventListener('put', e => {
     try {
       const d = JSON.parse(e.data);
-      if (d.data) {
-        attendance = d.data;
-        const activeScreen = document.querySelector('.screen.active');
-        if (activeScreen && activeScreen.id === 'screen-attendance') {
-          renderAttendance();
+      if (!d.data) return;
+      const data = d.data;
+
+      // עדכון נתונים
+      if (data.attendance)    attendance    = data.attendance;
+      if (data.dailyUpdates)  dailyUpdates  = data.dailyUpdates;
+      if (data.childProgress) childProgress = data.childProgress;
+      if (data.teacherNotes)  teacherNotes  = data.teacherNotes;
+      if (data.meeting)       meetingData   = data.meeting;
+      if (data.parents)       parentsData   = data.parents;
+      if (data.calEvents)     calEvents     = data.calEvents;
+      if (data.reminders)     reminders     = data.reminders;
+      if (data.monthlyArchive) monthlyArchive = data.monthlyArchive;
+      if (data.months) data.months.forEach((acts, i) => {
+        if (MONTHS[i] && acts) {
+          const codeTexts = MONTHS[i].activities.map(a => a.text);
+          const extraActs = acts.filter(a => a && a.text && !codeTexts.includes(a.text));
+          MONTHS[i].activities = MONTHS[i].activities.map(codeAct => {
+            const saved = acts.find(a => a && a.text === codeAct.text);
+            return saved ? { ...codeAct, done: saved.done } : codeAct;
+          });
+          MONTHS[i].activities = [...MONTHS[i].activities, ...extraActs];
         }
-        updateHomeSummary();
-      }
+      });
+
+      // רענון המסך הפעיל
+      const active = document.querySelector('.screen.active');
+      if (!active) return;
+      const id = active.id;
+      if (id === 'screen-attendance')  renderAttendance();
+      if (id === 'screen-updates')     renderUpdates();
+      if (id === 'screen-pedagogic')   renderMonths();
+      if (id === 'screen-meeting')     renderMeeting();
+      if (id === 'screen-parents')     renderParents();
+      if (id === 'screen-calendar')    renderCalendar();
+      if (id === 'screen-reminders')   renderReminders();
+      updateHomeSummary();
     } catch(err) {}
   });
 }
