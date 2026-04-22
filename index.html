@@ -986,12 +986,7 @@
     <div class="meeting-section">
       <div class="meeting-section-header">
         <div class="meeting-section-title">💬 נושאים לדיון</div>
-      </div>
-      <div style="display:flex;gap:8px;margin-bottom:12px">
-        <input type="text" id="new-topic-input" placeholder="נושא לדיון חדש..."
-          style="flex:1;padding:10px 12px;border:1.5px solid #EEE;border-radius:var(--radius-sm);font-family:'Heebo',sans-serif;font-size:14px;direction:rtl;"
-          onkeydown="if(event.key==='Enter') addTopic()">
-        <button class="add-topic-btn" onclick="addTopic()">+ הוסף</button>
+        <button class="add-topic-btn" onclick="addTopic()">+ הוסף נושא</button>
       </div>
       <div id="topics-list"></div>
     </div>
@@ -2290,11 +2285,9 @@ function saveSummary() {
 }
 
 function addTopic() {
-  const input = document.getElementById('new-topic-input');
-  const text = input ? input.value.trim() : '';
-  if (!text) return;
-  meetingData.topics.push({ text: text, done: false });
-  if (input) input.value = '';
+  const text = prompt('נושא לדיון:');
+  if (!text || !text.trim()) return;
+  meetingData.topics.push({ text: text.trim(), done: false });
   saveAll();
   renderTopics();
   showToast('הנושא נוסף ✓');
@@ -3102,10 +3095,7 @@ async function saveAll() {
 
 async function loadAll() {
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 6000); // 6 שניות מקסימום
-    const res = await fetch(`${FB_URL}/ganData.json`, { signal: controller.signal });
-    clearTimeout(timeoutId);
+    const res = await fetch(`${FB_URL}/ganData.json`);
     const data = await res.json();
     if (!data) return;
     if (data.attendance)    attendance    = data.attendance;
