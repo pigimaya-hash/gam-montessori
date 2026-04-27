@@ -989,7 +989,13 @@
     <div class="meeting-section">
       <div class="meeting-section-header">
         <div class="meeting-section-title">💬 נושאים לדיון</div>
-        <button class="add-topic-btn" onclick="addTopic()">+ הוסף נושא</button>
+        <button class="add-topic-btn" onclick="addTopicInline()">+ הוסף נושא</button>
+      </div>
+      <div style="display:flex;gap:8px;margin:8px 0 12px;padding:0 4px">
+        <input type="text" id="topic-input-field"
+          placeholder="כתבי נושא..."
+          style="flex:1;padding:11px 12px;border:1.5px solid #ddd;border-radius:10px;font-family:'Heebo',sans-serif;font-size:14px;direction:rtl;background:white;"
+          onkeyup="if(event.key==='Enter') addTopicInline()">
       </div>
       <div id="topics-list"></div>
     </div>
@@ -2287,14 +2293,18 @@ function saveSummary() {
   saveAll();
 }
 
-function addTopic() {
-  const text = prompt('נושא לדיון:');
-  if (!text || !text.trim()) return;
-  meetingData.topics.push({ text: text.trim(), done: false });
+function addTopicInline() {
+  const input = document.getElementById('topic-input-field');
+  const text = input ? input.value.trim() : '';
+  if (!text) { if(input) input.focus(); return; }
+  meetingData.topics.push({ text, done: false });
+  if (input) input.value = '';
   saveAll();
   renderTopics();
   showToast('הנושא נוסף ✓');
 }
+
+function addTopic() { addTopicInline(); }
 
 function renderTopics() {
   const list = document.getElementById('topics-list');
