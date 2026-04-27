@@ -21,6 +21,20 @@
 <!-- Splash screen colors -->
 <meta name="msapplication-TileColor" content="#C4714F">
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script>
+firebase.initializeApp({
+  apiKey: "AIzaSyD8ASiKV2d03x1DsJvZVi5Y0Ec_VQA62lU",
+  authDomain: "makom-ligdol-a9f7d.firebaseapp.com",
+  databaseURL: "https://makom-ligdol-a9f7d-default-rtdb.firebaseio.com",
+  projectId: "makom-ligdol-a9f7d",
+  storageBucket: "makom-ligdol-a9f7d.firebasestorage.app",
+  messagingSenderId: "931401479296",
+  appId: "1:931401479296:web:0992d31b84944f0ff3e265"
+});
+</script>
 <style>
   :root {
     --sand: #F5EDD8;
@@ -793,6 +807,35 @@
 </script>
 </head>
 <body>
+
+<!-- ════════════════ LOGIN SCREEN ════════════════ -->
+<div id="login-screen" style="
+  position:fixed;inset:0;background:var(--cream);
+  display:none;flex-direction:column;align-items:center;justify-content:center;
+  z-index:9999;padding:32px;
+">
+  <div style="font-size:56px;margin-bottom:16px">🌿</div>
+  <div style="font-size:26px;font-weight:800;color:var(--dark);margin-bottom:6px">מקום לגדול</div>
+  <div style="font-size:14px;color:var(--light-text);margin-bottom:40px">גן ילדים מונטסורי</div>
+  <button onclick="signInWithGoogle()" style="
+    display:flex;align-items:center;gap:12px;
+    padding:14px 28px;border-radius:var(--radius);
+    background:white;border:2px solid #DDD;
+    font-family:'Heebo',sans-serif;font-size:16px;font-weight:600;
+    cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.1);
+  ">
+    <svg width="20" height="20" viewBox="0 0 48 48">
+      <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+      <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+      <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+      <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+    </svg>
+    כניסה עם Google
+  </button>
+  <div id="login-error-msg" style="color:var(--terracotta);font-size:13px;margin-top:16px;display:none">
+    אין לך הרשאה לגשת לאפליקציה
+  </div>
+</div>
 
 <!-- ════════════════ HOME ════════════════ -->
 <div class="screen active" id="screen-home">
@@ -3147,12 +3190,43 @@ async function loadAll() {
 }
 
 // ════════ LOGIN ════════
-const TEAM_PASSWORD = '2016';
-const LOGIN_KEY = 'gan_login_expires';
-const LOGIN_DURATION = 7 * 24 * 60 * 60 * 1000;
+const ALLOWED_EMAILS = [
+  'pigimaya@gmail.com',
+  'adar17ben@gmail.com',
+  'shani4138@gmail.com',
+  'avital2479@walla.co.il',
+  'vlada@zelichenko.com',
+  'tohamoyal22@gmail.com',
+  'ayatmusic12@gmail.com',
+  'gushabella@gmail.com',
+  'shlomitiam@walla.com',
+];
+
+function signInWithGoogle() {
+  const provider = new firebase.auth.GoogleAuthProvider();
+  firebase.auth().signInWithPopup(provider)
+    .then(result => {
+      const email = result.user.email.toLowerCase();
+      if (ALLOWED_EMAILS.includes(email)) {
+        document.getElementById('login-screen').style.display = 'none';
+        document.getElementById('login-error-msg').style.display = 'none';
+      } else {
+        firebase.auth().signOut();
+        document.getElementById('login-error-msg').style.display = 'block';
+      }
+    })
+    .catch(err => console.error(err));
+}
 
 function checkLoginStatus() {
-  return true; // אין מסך סיסמה כרגע
+  firebase.auth().onAuthStateChanged(user => {
+    const loginScreen = document.getElementById('login-screen');
+    if (user && ALLOWED_EMAILS.includes(user.email.toLowerCase())) {
+      loginScreen.style.display = 'none';
+    } else {
+      loginScreen.style.display = 'flex';
+    }
+  });
 }
 
 function doLogin() {}
