@@ -3050,7 +3050,10 @@ function startRealtimeSync() {
       if (data.dailyUpdates)  dailyUpdates  = data.dailyUpdates;
       if (data.childProgress) childProgress = data.childProgress;
       if (data.teacherNotes)  teacherNotes  = data.teacherNotes;
-      if (data.meeting)       meetingData   = data.meeting;
+      if (data.meeting) {
+        meetingData = data.meeting;
+        if (!meetingData.topics) meetingData.topics = [];
+      }
       if (data.parents)       parentsData   = data.parents;
       if (data.calEvents)     calEvents     = data.calEvents;
       if (data.reminders)     reminders     = data.reminders;
@@ -3129,7 +3132,10 @@ async function loadAll() {
         MONTHS[i].activities = [...MONTHS[i].activities, ...extraActs];
       }
     });
-    if (data.meeting)       meetingData   = data.meeting;
+    if (data.meeting) {
+        meetingData = data.meeting;
+        if (!meetingData.topics) meetingData.topics = [];
+      }
     if (data.parents)       parentsData   = data.parents;
     if (data.calEvents)     calEvents     = data.calEvents;
     if (data.reminders)       reminders       = data.reminders;
