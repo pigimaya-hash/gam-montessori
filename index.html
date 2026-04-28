@@ -3130,22 +3130,27 @@ function startRealtimeSync() {
 }
 
 async function saveAll() {
-  const data = {
-    attendance,
-    dailyUpdates,
-    childProgress,
-    teacherNotes,
-    months: MONTHS.map(m => m.activities),
-    meeting: meetingData,
-    parents: parentsData,
-    calEvents,
-    reminders,
-    monthlyArchive,
-    children: CHILDREN,
-    archivedChildren,
-  };
+  // שמירה נפרדת לכל מקטע למניעת דריסת נתונים
+  const saves = [
+    fetch(`${FB_URL}/ganData/attendance.json`, { method: 'PUT', body: JSON.stringify(attendance) }),
+    fetch(`${FB_URL}/ganData/dailyUpdates.json`, { method: 'PUT', body: JSON.stringify(dailyUpdates) }),
+    fetch(`${FB_URL}/ganData/childProgress.json`, { method: 'PUT', body: JSON.stringify(childProgress) }),
+    fetch(`${FB_URL}/ganData/teacherNotes.json`, { method: 'PUT', body: JSON.stringify(teacherNotes) }),
+    fetch(`${FB_URL}/ganData/months.json`, { method: 'PUT', body: JSON.stringify(MONTHS.map(m => m.activities)) }),
+    fetch(`${FB_URL}/ganData/meeting.json`, { method: 'PUT', body: JSON.stringify(meetingData) }),
+    fetch(`${FB_URL}/ganData/parents.json`, { method: 'PUT', body: JSON.stringify(parentsData) }),
+    fetch(`${FB_URL}/ganData/calEvents.json`, { method: 'PUT', body: JSON.stringify(calEvents) }),
+    fetch(`${FB_URL}/ganData/reminders.json`, { method: 'PUT', body: JSON.stringify(reminders) }),
+    fetch(`${FB_URL}/ganData/monthlyArchive.json`, { method: 'PUT', body: JSON.stringify(monthlyArchive) }),
+    fetch(`${FB_URL}/ganData/children.json`, { method: 'PUT', body: JSON.stringify(CHILDREN) }),
+    fetch(`${FB_URL}/ganData/archivedChildren.json`, { method: 'PUT', body: JSON.stringify(archivedChildren) }),
+  ];
+  try { await Promise.all(saves); } catch(e) { console.error('שמירה נכשלה', e); }
+}
+
+async function saveSection(section, data) {
   try {
-    await fetch(`${FB_URL}/ganData.json`, {
+    await fetch(`${FB_URL}/ganData/${section}.json`, {
       method: 'PUT',
       body: JSON.stringify(data),
     });
