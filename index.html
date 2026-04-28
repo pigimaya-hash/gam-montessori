@@ -1044,6 +1044,13 @@ firebase.initializeApp({
     </div>
 
     <button class="save-btn" onclick="saveAll();showToast('נשמר ✓')" style="margin:16px 0 8px">💾 שמור ועדכן</button>
+    <button class="save-btn" onclick="archiveMeeting()" style="margin:0 0 16px;background:var(--sage)">📁 סיים ישיבה ושמור לארכיון</button>
+
+    <!-- ארכיון ישיבות קודמות -->
+    <div class="meeting-section">
+      <div class="meeting-section-title">🗂️ ישיבות קודמות</div>
+      <div id="meeting-archive-list"></div>
+    </div>
   </div>
 </div>
 
@@ -1754,6 +1761,7 @@ function navigate(screen) {
     document.getElementById('screen-meeting').classList.add('active');
     document.getElementById('nav-meeting').classList.add('active');
     renderTopics();
+    renderMeetingArchive();
     if (meetingData.date) document.getElementById('meeting-date-input').value = meetingData.date;
     if (meetingData.summary) document.getElementById('prev-summary').value = meetingData.summary;
   } else if (screen === 'parents') {
@@ -2331,6 +2339,69 @@ function showToast(msg) {
 
 // ════════ MEETING ════════
 let meetingData = { date: '', summary: '', topics: [] };
+let meetingArchive = [];
+
+function archiveMeeting() {
+  if (!meetingData.date && !meetingData.summary && meetingData.topics.length === 0) {
+    showToast('אין מה לשמור — הישיבה ריקה');
+    return;
+  }
+  const archived = {
+    date: meetingData.date || new Date().toISOString().split('T')[0],
+    summary: meetingData.summary,
+    topics: [...meetingData.topics],
+    savedAt: new Date().toLocaleDateString('he-IL')
+  };
+  meetingArchive.unshift(archived);
+  // איפוס הישיבה הנוכחית
+  meetingData = { date: '', summary: '', topics: [] };
+  document.getElementById('meeting-date-input').value = '';
+  document.getElementById('prev-summary').value = '';
+  renderTopics();
+  renderMeetingArchive();
+  // שמירה
+  fetch(`${FB_URL}/ganData/meeting.json`, { method: 'PUT', body: JSON.stringify(meetingData) });
+  fetch(`${FB_URL}/ganData/meetingArchive.json`, { method: 'PUT', body: JSON.stringify(meetingArchive) });
+  showToast('הישיבה נשמרה לארכיון ✓');
+}
+
+function renderMeetingArchive() {
+  const list = document.getElementById('meeting-archive-list');
+  if (!list) return;
+  if (!meetingArchive || meetingArchive.length === 0) {
+    list.innerHTML = '<div style="font-size:13px;color:var(--light-text);text-align:center;padding:12px">אין ישיבות קודמות עדיין</div>';
+    return;
+  }
+  list.innerHTML = '';
+  meetingArchive.forEach((m, i) => {
+    const months = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+    let dateLabel = m.date || m.savedAt || '';
+    if (dateLabel.includes('-')) {
+      const [y,mo,d] = dateLabel.split('-');
+      dateLabel = `${parseInt(d)} ${months[parseInt(mo)-1]} ${y}`;
+    }
+    const el = document.createElement('div');
+    el.style.cssText = 'background:var(--card-bg);border-radius:var(--radius-sm);padding:14px;margin-bottom:10px;box-shadow:var(--shadow);cursor:pointer';
+    el.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div style="font-size:14px;font-weight:700">📅 ${dateLabel}</div>
+        <div style="font-size:12px;color:var(--light-text)">${m.topics ? m.topics.length : 0} נושאים</div>
+      </div>
+      <div id="archive-detail-${i}" style="display:none;margin-top:10px">
+        ${m.summary ? `<div style="font-size:13px;margin-bottom:8px;color:var(--dark)">${m.summary}</div>` : ''}
+        ${m.topics && m.topics.length ? m.topics.map(t => `
+          <div style="font-size:13px;padding:4px 0;color:${t.done ? 'var(--sage)' : 'var(--dark)'}">
+            ${t.done ? '✓' : '•'} ${t.text}
+          </div>`).join('') : ''}
+      </div>
+    `;
+    el.onclick = () => {
+      const det = document.getElementById(`archive-detail-${i}`);
+      det.style.display = det.style.display === 'none' ? 'block' : 'none';
+    };
+    list.appendChild(el);
+  });
+}
 
 function saveMeetingDate() {
   meetingData.date = document.getElementById('meeting-date-input').value;
@@ -3102,9 +3173,8 @@ function startRealtimeSync() {
         meetingData = data.meeting;
         if (!meetingData.topics) meetingData.topics = [];
       }
+      if (data.meetingArchive) meetingArchive = data.meetingArchive;
       if (data.parents)       parentsData   = data.parents;
-      if (data.calEvents)     calEvents     = data.calEvents;
-      if (data.reminders)     reminders     = data.reminders;
       if (data.monthlyArchive) monthlyArchive = data.monthlyArchive;
       if (data.months) data.months.forEach((acts, i) => {
         if (MONTHS[i] && acts) {
@@ -3188,6 +3258,7 @@ async function loadAll() {
         meetingData = data.meeting;
         if (!meetingData.topics) meetingData.topics = [];
       }
+    if (data.meetingArchive)  meetingArchive  = data.meetingArchive;
     if (data.parents)       parentsData   = data.parents;
     if (data.calEvents)     calEvents     = data.calEvents;
     if (data.reminders)       reminders       = data.reminders;
