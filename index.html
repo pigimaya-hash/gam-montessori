@@ -1834,9 +1834,14 @@ function renderAttendance() {
 }
 
 function toggleAttendance(id) {
-  const todayAtt = getTodayAttendance();
-  todayAtt[id] = !todayAtt[id];
-  saveAll();
+  const key = todayKey();
+  if (!attendance[key]) attendance[key] = {};
+  attendance[key][id] = !attendance[key][id];
+  // שמור רק את נוכחות היום
+  fetch(`${FB_URL}/ganData/attendance/${key}.json`, {
+    method: 'PUT',
+    body: JSON.stringify(attendance[key])
+  }).catch(e => console.error('שמירה נכשלה', e));
   renderAttendance();
 }
 
@@ -3089,7 +3094,7 @@ function startRealtimeSync() {
       const data = d.data;
 
       // עדכון נתונים
-      if (data.attendance)    attendance    = data.attendance;
+      if (data.attendance && typeof data.attendance === 'object' && !Array.isArray(data.attendance)) attendance = data.attendance;
       if (data.dailyUpdates)  dailyUpdates  = data.dailyUpdates;
       if (data.childProgress) childProgress = data.childProgress;
       if (data.teacherNotes)  teacherNotes  = data.teacherNotes;
@@ -3132,7 +3137,6 @@ function startRealtimeSync() {
 async function saveAll() {
   // שמירה נפרדת לכל מקטע למניעת דריסת נתונים
   const saves = [
-    fetch(`${FB_URL}/ganData/attendance.json`, { method: 'PUT', body: JSON.stringify(attendance) }),
     fetch(`${FB_URL}/ganData/dailyUpdates.json`, { method: 'PUT', body: JSON.stringify(dailyUpdates) }),
     fetch(`${FB_URL}/ganData/childProgress.json`, { method: 'PUT', body: JSON.stringify(childProgress) }),
     fetch(`${FB_URL}/ganData/teacherNotes.json`, { method: 'PUT', body: JSON.stringify(teacherNotes) }),
@@ -3162,7 +3166,7 @@ async function loadAll() {
     const res = await fetch(`${FB_URL}/ganData.json`);
     const data = await res.json();
     if (!data) return;
-    if (data.attendance)    attendance    = data.attendance;
+    if (data.attendance && typeof data.attendance === 'object' && !Array.isArray(data.attendance)) attendance = data.attendance;
     if (data.dailyUpdates)  dailyUpdates  = data.dailyUpdates;
     if (data.childProgress) childProgress = data.childProgress;
     if (data.teacherNotes)  teacherNotes  = data.teacherNotes;
