@@ -818,12 +818,7 @@ firebase.initializeApp({
   <div style="font-size:26px;font-weight:800;color:var(--dark);margin-bottom:6px">מקום לגדול</div>
   <div style="font-size:14px;color:var(--light-text);margin-bottom:36px">גן ילדים מונטסורי</div>
 
-  <!-- כרטיס כניסה -->
-  <div style="
-    width:100%;max-width:340px;background:white;
-    border-radius:var(--radius);padding:28px 24px;
-    box-shadow:var(--shadow-lg);
-  ">
+  <div style="width:100%;max-width:340px;background:white;border-radius:var(--radius);padding:28px 24px;box-shadow:var(--shadow-lg);">
 
     <!-- כניסה עם Google -->
     <button onclick="signInWithGoogle()" style="
@@ -832,8 +827,7 @@ firebase.initializeApp({
       background:white;border:2px solid #DDD;
       font-family:'Heebo',sans-serif;font-size:15px;font-weight:600;
       cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,0.07);
-      transition:box-shadow .15s,border-color .15s;
-    " onmouseover="this.style.borderColor='#C4714F'" onmouseout="this.style.borderColor='#DDD'">
+    ">
       <svg width="20" height="20" viewBox="0 0 48 48">
         <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
         <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
@@ -856,42 +850,33 @@ firebase.initializeApp({
         width:100%;padding:13px 14px;border:2px solid #EEE;
         border-radius:var(--radius-sm);font-size:14px;
         font-family:'Heebo',sans-serif;color:var(--dark);
-        background:var(--cream);text-align:right;
-        transition:border-color .15s;outline:none;
-      " onfocus="this.style.borderColor='#C4714F'" onblur="this.style.borderColor='#EEE'"
-         onkeydown="if(event.key==='Enter')document.getElementById('login-password').focus()">
+        background:var(--cream);text-align:right;outline:none;
+      " onkeydown="if(event.key==='Enter')document.getElementById('login-password').focus()">
 
       <div style="position:relative;">
         <input id="login-password" type="password" placeholder="סיסמה" style="
           width:100%;padding:13px 14px;border:2px solid #EEE;
           border-radius:var(--radius-sm);font-size:14px;
           font-family:'Heebo',sans-serif;color:var(--dark);
-          background:var(--cream);text-align:right;
-          transition:border-color .15s;outline:none;
-        " onfocus="this.style.borderColor='#C4714F'" onblur="this.style.borderColor='#EEE'"
-           onkeydown="if(event.key==='Enter')doLoginWithPassword()">
+          background:var(--cream);text-align:right;outline:none;
+        " onkeydown="if(event.key==='Enter')doLoginWithPassword()">
         <button onclick="togglePasswordVisibility()" style="
           position:absolute;left:12px;top:50%;transform:translateY(-50%);
-          background:none;border:none;cursor:pointer;font-size:16px;color:var(--light-text);
-          padding:0;line-height:1;
+          background:none;border:none;cursor:pointer;font-size:16px;color:var(--light-text);padding:0;
         " id="pw-toggle-btn">👁️</button>
       </div>
 
       <button onclick="doLoginWithPassword()" style="
         width:100%;padding:14px;border-radius:var(--radius-sm);
         background:var(--terracotta);color:white;border:none;
-        font-family:'Heebo',sans-serif;font-size:15px;font-weight:700;
-        cursor:pointer;transition:background .15s;
-      " onmouseover="this.style.background='#B5604A'" onmouseout="this.style.background='var(--terracotta)'">
-        כניסה
-      </button>
+        font-family:'Heebo',sans-serif;font-size:15px;font-weight:700;cursor:pointer;
+      ">כניסה</button>
     </div>
 
-    <!-- שגיאות -->
-    <div id="login-error-msg" style="color:var(--terracotta);font-size:13px;margin-top:14px;display:none;text-align:center;line-height:1.5">
+    <div id="login-error-msg" style="color:var(--terracotta);font-size:13px;margin-top:14px;display:none;text-align:center">
       אין לך הרשאה לגשת לאפליקציה
     </div>
-    <div id="login-pw-error" style="color:var(--terracotta);font-size:13px;margin-top:14px;display:none;text-align:center;line-height:1.5">
+    <div id="login-pw-error" style="color:var(--terracotta);font-size:13px;margin-top:14px;display:none;text-align:center">
       אימייל או סיסמה שגויים
     </div>
   </div>
@@ -3375,7 +3360,6 @@ function checkLoginStatus() {
   });
 }
 
-// סיסמאות מותרות: אימייל => סיסמה
 const USER_PASSWORDS = {
   'pigimaya@gmail.com':      '2016',
   'adar17ben@gmail.com':     '2016',
@@ -3395,7 +3379,6 @@ function doLoginWithPassword() {
   const pw    = (document.getElementById('login-password').value || '');
   const errEl = document.getElementById('login-pw-error');
   errEl.style.display = 'none';
-
   if (!email || !pw) { errEl.textContent = 'נא למלא אימייל וסיסמה'; errEl.style.display = 'block'; return; }
   if (USER_PASSWORDS[email] && USER_PASSWORDS[email] === pw) {
     try {
