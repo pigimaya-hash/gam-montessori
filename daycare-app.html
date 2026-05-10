@@ -1,0 +1,1791 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>ניהול מעונות — מאיה</title>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --primary: #6B3FA0;
+    --primary-light: #9B6FD0;
+    --primary-pale: #F0E8FF;
+    --accent: #F4845F;
+    --accent-light: #FDE8DF;
+    --bg: #FAF8FF;
+    --card: #FFFFFF;
+    --text: #1E1A2E;
+    --text-muted: #7B6F8F;
+    --border: #E8E0F5;
+    --warning: #F4A261;
+    --warning-light: #FEF3E2;
+    --shadow: 0 2px 12px rgba(107,63,160,0.08);
+    --radius: 16px;
+    --radius-sm: 10px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body { font-family: 'Heebo', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; max-width: 430px; margin: 0 auto; position: relative; }
+
+  .topbar { background: var(--primary); color: white; padding: 16px 20px 14px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+  .topbar-title { font-size: 18px; font-weight: 600; }
+  .topbar-sub { font-size: 12px; opacity: 0.75; margin-top: 2px; }
+  .topbar-icon { width: 36px; height: 36px; background: rgba(255,255,255,0.15); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; cursor: pointer; }
+
+  .screen { display: none; padding-bottom: 90px; }
+  .screen.active { display: block; }
+
+  .home-greeting { padding: 20px 20px 8px; }
+  .home-greeting h2 { font-size: 22px; font-weight: 700; color: var(--primary); }
+  .home-greeting p { font-size: 14px; color: var(--text-muted); margin-top: 4px; }
+
+  .metrics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 12px 20px; }
+  .metric-card { background: var(--card); border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow); border: 1px solid var(--border); transition: transform 0.15s, box-shadow 0.15s; }
+  .metric-card:active { transform: scale(0.96); }
+  .metric-num { font-size: 28px; font-weight: 700; color: var(--primary); }
+  .metric-label { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+  .metric-card.accent .metric-num { color: var(--accent); }
+
+  .section-title { font-size: 13px; font-weight: 600; color: var(--text-muted); padding: 8px 20px 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+  .quick-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 0 20px 8px; }
+  .qa-card { background: var(--card); border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow); border: 1px solid var(--border); cursor: pointer; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; transition: transform 0.15s; color: var(--text); }
+  .qa-card:active { transform: scale(0.97); }
+  .qa-icon { font-size: 24px; }
+  .qa-label { font-size: 14px; font-weight: 600; }
+  .qa-sub { font-size: 12px; color: var(--text-muted); }
+
+  .alerts-list { padding: 0 20px; display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+  .alert-item { background: var(--warning-light); border-radius: var(--radius-sm); padding: 12px 14px; display: flex; gap: 10px; align-items: flex-start; border-right: 3px solid var(--warning); }
+  .alert-item.info { background: var(--primary-pale); border-color: var(--primary-light); }
+  .alert-text { font-size: 13px; color: var(--text); line-height: 1.5; }
+  .alert-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--warning); margin-top: 4px; flex-shrink: 0; }
+  .alert-item.info .alert-dot { background: var(--primary); }
+
+  .search-bar { padding: 12px 20px; }
+  .search-wrap { position: relative; }
+  .search-input { width: 100%; background: var(--card); border: 1px solid var(--border); border-radius: 50px; padding: 10px 16px 10px 40px; font-size: 14px; font-family: 'Heebo', sans-serif; color: var(--text); outline: none; }
+  .search-wrap::after { content: '🔍'; position: absolute; left: 14px; top: 50%; transform: translateY(-50%); font-size: 14px; }
+
+  .daycare-list { padding: 0 20px; display: flex; flex-direction: column; gap: 10px; }
+  .daycare-card { background: var(--card); border-radius: var(--radius); padding: 14px 16px; box-shadow: var(--shadow); border: 1px solid var(--border); cursor: pointer; transition: transform 0.15s; display: flex; align-items: center; gap: 14px; }
+  .daycare-card:active { transform: scale(0.98); }
+  .daycare-avatar { width: 46px; height: 46px; border-radius: 14px; background: var(--primary-pale); display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+  .daycare-info { flex: 1; min-width: 0; }
+  .daycare-name { font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .daycare-meta { font-size: 12px; color: var(--text-muted); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .daycare-arrow { color: var(--text-muted); font-size: 20px; flex-shrink: 0; }
+
+  .add-btn { position: fixed; bottom: 90px; left: 20px; background: var(--primary); color: white; border: none; border-radius: 50px; padding: 14px 20px; font-size: 15px; font-family: 'Heebo', sans-serif; font-weight: 600; cursor: pointer; box-shadow: 0 4px 16px rgba(107,63,160,0.35); display: flex; align-items: center; gap: 8px; z-index: 50; transition: transform 0.15s; }
+  .add-btn:active { transform: scale(0.96); }
+
+  .profile-header { background: var(--primary); color: white; padding: 20px; }
+  .back-btn { font-size: 13px; opacity: 0.8; cursor: pointer; margin-bottom: 10px; display: flex; align-items: center; gap: 4px; }
+  .profile-name { font-size: 22px; font-weight: 700; }
+  .profile-meta { font-size: 13px; opacity: 0.8; margin-top: 5px; line-height: 1.6; }
+
+  .tabs-bar { background: var(--card); display: flex; border-bottom: 1px solid var(--border); overflow-x: auto; scrollbar-width: none; }
+  .tabs-bar::-webkit-scrollbar { display: none; }
+  .tab-btn { flex-shrink: 0; padding: 14px 16px; font-size: 14px; font-family: 'Heebo', sans-serif; font-weight: 500; color: var(--text-muted); background: none; border: none; cursor: pointer; border-bottom: 2px solid transparent; transition: color 0.2s, border-color 0.2s; }
+  .tab-btn.active { color: var(--primary); border-color: var(--primary); }
+
+  .tab-content { display: none; padding: 16px 20px; }
+  .tab-content.active { display: block; }
+
+  .staff-item { background: var(--card); border-radius: var(--radius-sm); padding: 14px; display: flex; align-items: center; gap: 12px; margin-bottom: 8px; border: 1px solid var(--border); }
+  .staff-avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--primary-pale); display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; color: var(--primary); flex-shrink: 0; }
+  .staff-name { font-size: 14px; font-weight: 600; }
+  .staff-role { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+  .visit-item { background: var(--card); border-radius: var(--radius-sm); padding: 14px; margin-bottom: 8px; border: 1px solid var(--border); border-right: 3px solid var(--primary-light); }
+  .visit-date { font-size: 12px; color: var(--text-muted); margin-bottom: 6px; }
+  .visit-summary { font-size: 14px; line-height: 1.6; }
+  .visit-tags { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+  .visit-tag { font-size: 11px; padding: 3px 10px; border-radius: 50px; background: var(--primary-pale); color: var(--primary); }
+  .visit-tag.improve { background: var(--accent-light); color: var(--accent); }
+
+  .action-btn { width: 100%; background: var(--primary); color: white; border: none; border-radius: var(--radius-sm); padding: 14px; font-size: 15px; font-family: 'Heebo', sans-serif; font-weight: 600; cursor: pointer; margin-top: 12px; transition: background 0.2s; }
+  .action-btn:active { background: var(--primary-light); }
+  .action-btn.secondary { background: var(--primary-pale); color: var(--primary); }
+
+  .info-row { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .info-label { font-size: 12px; color: var(--text-muted); min-width: 80px; margin-top: 2px; }
+  .info-value { font-size: 14px; color: var(--text); flex: 1; }
+
+  .form-section { padding: 16px 20px; }
+  .form-label { font-size: 13px; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; display: block; }
+  .form-input, .form-select, .form-textarea { width: 100%; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px; font-size: 14px; font-family: 'Heebo', sans-serif; color: var(--text); outline: none; margin-bottom: 14px; transition: border-color 0.2s; }
+  .form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--primary-light); }
+  .form-textarea { min-height: 80px; resize: vertical; }
+
+  .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; max-width: 430px; margin: 0 auto; background: var(--card); border-top: 1px solid var(--border); display: flex; z-index: 100; padding-bottom: env(safe-area-inset-bottom); }
+  .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 10px 0 8px; cursor: pointer; color: var(--text-muted); font-size: 11px; gap: 4px; transition: color 0.2s; border: none; background: none; font-family: 'Heebo', sans-serif; }
+  .nav-item.active { color: var(--primary); }
+  .nav-icon { font-size: 22px; }
+
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 200; align-items: flex-end; justify-content: center; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--card); border-radius: 24px 24px 0 0; width: 100%; max-width: 430px; padding: 20px; max-height: 88vh; overflow-y: auto; }
+  .modal-handle { width: 36px; height: 4px; background: var(--border); border-radius: 2px; margin: 0 auto 16px; }
+  .modal-title { font-size: 18px; font-weight: 700; margin-bottom: 16px; color: var(--primary); }
+
+  .success-toast { position: fixed; top: 80px; left: 50%; transform: translateX(-50%) translateY(-20px); background: var(--primary); color: white; padding: 12px 24px; border-radius: 50px; font-size: 14px; font-weight: 500; z-index: 300; opacity: 0; transition: all 0.3s; white-space: nowrap; }
+  .success-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .note-badge { display: inline-block; background: #FEF3E2; color: #B7540A; font-size: 11px; padding: 3px 10px; border-radius: 50px; margin-top: 4px; }
+  @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.08)} }
+</style>
+</head>
+<body>
+
+<div class="topbar" id="topbar">
+  <div>
+    <div class="topbar-title" id="topbar-title">ניהול מעונות</div>
+    <div class="topbar-sub" id="topbar-sub">שלום, מאיה 👋</div>
+  </div>
+  <div class="topbar-icon">🔔</div>
+</div>
+
+<div class="success-toast" id="toast">נשמר בהצלחה ✓</div>
+
+<!-- HOME -->
+<div class="screen active" id="screen-home">
+  <div class="home-greeting">
+    <h2 id="home-greeting-text">בוקר טוב, מאיה 💜</h2>
+    <p id="today-date"></p>
+  </div>
+
+  <!-- כפתורי ניווט מהיר -->
+  <div class="metrics-grid">
+    <div class="metric-card" onclick="goTo('daycares')" style="cursor:pointer">
+      <div class="metric-num">18</div>
+      <div class="metric-label">🏫 מעונות</div>
+    </div>
+    <div class="metric-card" onclick="openVisitModal()" style="cursor:pointer">
+      <div class="metric-num" id="visit-count">0</div>
+      <div class="metric-label">📋 ביקורים</div>
+    </div>
+    <div class="metric-card accent" onclick="goTo('tracking')" style="cursor:pointer">
+      <div class="metric-num" id="unvisited-count">0</div>
+      <div class="metric-label">⏰ ממתינים לביקור</div>
+    </div>
+    <div class="metric-card accent" onclick="goTo('tracking')" style="cursor:pointer">
+      <div class="metric-num" id="tracking-count">0</div>
+      <div class="metric-label">👁️ באיתור</div>
+    </div>
+  </div>
+
+  <!-- לוח בקרה — דורש טיפול -->
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 20px 6px">
+    <div class="section-title" style="padding:0">⚡ דורש טיפול עכשיו</div>
+    <button onclick="openAddDashboardItem()" style="background:var(--primary);color:white;border:none;border-radius:50px;padding:5px 14px;font-size:12px;font-family:Heebo,sans-serif;cursor:pointer;font-weight:600">＋ הוסיפי</button>
+  </div>
+  <div id="dashboard-items" style="padding:0 20px;display:flex;flex-direction:column;gap:8px"></div>
+
+  <!-- ביקורים מתוכננים -->
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 20px 6px">
+    <div class="section-title" style="padding:0">📅 ביקורים מתוכננים</div>
+    <button onclick="openAddPlanned()" style="background:var(--primary);color:white;border:none;border-radius:50px;padding:5px 14px;font-size:12px;font-family:Heebo,sans-serif;cursor:pointer;font-weight:600">＋ הוסיפי</button>
+  </div>
+  <div id="planned-visits-list" style="padding:0 20px;display:flex;flex-direction:column;gap:8px;margin-bottom:4px"></div>
+  <div style="padding:0 20px 8px;display:flex;gap:8px">
+    <button onclick="exportData()" style="flex:1;background:var(--primary-pale);color:var(--primary);border:none;border-radius:10px;padding:10px;font-size:13px;font-family:Heebo,sans-serif;cursor:pointer;font-weight:600">
+      💾 גבי נתונים
+    </button>
+    <button onclick="openImport()" style="flex:1;background:var(--primary-pale);color:var(--primary);border:none;border-radius:10px;padding:10px;font-size:13px;font-family:Heebo,sans-serif;cursor:pointer;font-weight:600">
+      📂 טעני גיבוי
+    </button>
+  </div>
+  <div style="height:8px"></div>
+</div>
+
+<!-- TRACKING SCREEN -->
+<div class="screen" id="screen-tracking">
+  <div style="padding:16px 20px 8px;display:flex;align-items:center;justify-content:space-between">
+    <div>
+      <div style="font-size:18px;font-weight:700;color:var(--primary)">איתור מוקדם ובקרה</div>
+      <div style="font-size:13px;color:var(--text-muted);margin-top:2px">ילדים עם עיכוב התפתחותי</div>
+    </div>
+    <button onclick="openAddTracking()" style="background:var(--primary);color:white;border:none;border-radius:50px;padding:10px 18px;font-size:14px;font-family:Heebo,sans-serif;cursor:pointer;font-weight:600">＋ הוסיפי</button>
+  </div>
+  <div id="tracking-list" style="padding:12px 20px;display:flex;flex-direction:column;gap:10px"></div>
+  <div style="height:80px"></div>
+</div>
+
+<!-- MODAL: ADD EARLY DETECTION -->
+<div class="modal-overlay" id="add-tracking-modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">👶 איתור מוקדם</div>
+
+    <label class="form-label">מעון</label>
+    <select class="form-select" id="track-daycare"></select>
+
+    <label class="form-label">כינוי הילד/ה (ללא פרטים מזהים)</label>
+    <input class="form-input" type="text" id="track-name" placeholder="למשל: ילד א׳, ילדה ב׳...">
+
+    <label class="form-label">גיל וקבוצה</label>
+    <input class="form-input" type="text" id="track-age" placeholder="למשל: שנתיים, תינוקיה...">
+
+    <label class="form-label">תיאור העיכוב / הקושי</label>
+    <textarea class="form-textarea" id="track-desc" placeholder="תארי את מה שנצפה — תחומי התפתחות, התנהגות, קשיים..." style="min-height:90px"></textarea>
+
+    <label class="form-label">פעולות שננקטו / מתוכננות</label>
+    <div id="track-actions-list" style="margin-bottom:8px;display:flex;flex-wrap:wrap;gap:6px"></div>
+    <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap">
+      <button onclick="addTrackAction('הפניה לאבחון')" style="background:var(--primary-pale);color:var(--primary);border:none;border-radius:50px;padding:6px 12px;font-size:12px;font-family:Heebo,sans-serif;cursor:pointer">＋ הפניה לאבחון</button>
+      <button onclick="addTrackAction('שיחה עם הורים')" style="background:var(--primary-pale);color:var(--primary);border:none;border-radius:50px;padding:6px 12px;font-size:12px;font-family:Heebo,sans-serif;cursor:pointer">＋ שיחה עם הורים</button>
+      <button onclick="addTrackAction('ייעוץ מומחה')" style="background:var(--primary-pale);color:var(--primary);border:none;border-radius:50px;padding:6px 12px;font-size:12px;font-family:Heebo,sans-serif;cursor:pointer">＋ ייעוץ מומחה</button>
+      <button onclick="addTrackAction('התאמת סביבה')" style="background:var(--primary-pale);color:var(--primary);border:none;border-radius:50px;padding:6px 12px;font-size:12px;font-family:Heebo,sans-serif;cursor:pointer">＋ התאמת סביבה</button>
+      <button onclick="addTrackAction('הדרכת צוות')" style="background:var(--primary-pale);color:var(--primary);border:none;border-radius:50px;padding:6px 12px;font-size:12px;font-family:Heebo,sans-serif;cursor:pointer">＋ הדרכת צוות</button>
+    </div>
+
+    <label class="form-label">עדכון אחרון / התקדמות</label>
+    <textarea class="form-textarea" id="track-update" placeholder="מה השתנה? מה התקדם?" style="min-height:60px"></textarea>
+
+    <label class="form-label">תאריך מעקב הבא</label>
+    <input class="form-input" type="date" id="track-next-date">
+
+    <button class="action-btn" onclick="saveTracking()">שמירה ✓</button>
+    <button class="action-btn secondary" style="margin-top:8px" onclick="closeModal()">ביטול</button>
+  </div>
+</div>
+    </div>
+
+    <label class="form-label">עדכון אחרון / הערה</label>
+    <textarea class="form-textarea" id="track-update" placeholder="מה קרה לאחרונה?" style="min-height:60px"></textarea>
+
+    <button class="action-btn" onclick="saveTracking()">שמירה ✓</button>
+    <button class="action-btn secondary" style="margin-top:8px" onclick="closeModal()">ביטול</button>
+  </div>
+</div>
+
+<!-- DAYCARES LIST -->
+<div class="screen" id="screen-daycares">
+  <div class="search-bar">
+    <div class="search-wrap">
+      <input class="search-input" type="text" placeholder="חיפוש לפי שם מעון או מנהלת..." oninput="filterDaycares(this.value)">
+    </div>
+  </div>
+  <div class="daycare-list" id="daycare-list"></div>
+  <div style="height:70px"></div>
+  <button class="add-btn" onclick="openAddDaycare()">＋ מעון חדש</button>
+</div>
+
+<!-- DAYCARE PROFILE -->
+<div class="screen" id="screen-profile">
+  <div class="profile-header">
+    <div class="back-btn" onclick="goTo('daycares')">→ חזרה לרשימה</div>
+    <div class="profile-name" id="profile-name"></div>
+    <div class="profile-meta" id="profile-meta"></div>
+  </div>
+  <div class="tabs-bar">
+    <button class="tab-btn active" onclick="switchTab(event,'tab-info')">פרטים</button>
+    <button class="tab-btn" onclick="switchTab(event,'tab-visits-p')">ביקורים</button>
+    <button class="tab-btn" onclick="switchTab(event,'tab-staff')">צוות</button>
+    <button class="tab-btn" onclick="switchTab(event,'tab-early')">👶 איתור</button>
+    <button class="tab-btn" onclick="switchTab(event,'tab-messages')">עדכונים</button>
+    <button class="tab-btn" onclick="switchTab(event,'tab-report')">📊 דוח</button>
+  </div>
+
+  <div class="tab-content active" id="tab-info">
+    <div id="profile-details"></div>
+    <button class="action-btn secondary" onclick="openVisitModal()" style="margin-top:8px">📋 הוסיפי ביקור חדש</button>
+  </div>
+
+  <div class="tab-content" id="tab-visits-p">
+    <button class="action-btn" onclick="openVisitModal()">＋ ביקור חדש</button>
+    <div style="height:10px"></div>
+    <div id="profile-visits-list"><div style="color:var(--text-muted);font-size:14px;text-align:center;padding:20px">עדיין לא תועדו ביקורים למעון זה</div></div>
+  </div>
+
+  <div class="tab-content" id="tab-staff">
+    <div id="staff-list"></div>
+    <button class="action-btn secondary" style="margin-top:8px" onclick="openAddStaff()">＋ הוסיפי איש צוות</button>
+  </div>
+
+  <!-- כרטיסיית איתור מוקדם בפרופיל -->
+  <div class="tab-content" id="tab-early">
+    <button class="action-btn secondary" onclick="openAddTrackingForProfile()">＋ הוסיפי ילד/ה לאיתור</button>
+    <div style="height:10px"></div>
+    <div id="profile-early-list"><div style="color:var(--text-muted);font-size:14px;text-align:center;padding:20px">אין ילדים באיתור מוקדם למעון זה</div></div>
+  </div>
+
+  <!-- כרטיסיית דוח בפרופיל -->
+  <div class="tab-content" id="tab-report">
+    <div style="font-size:13px;color:var(--text-muted);margin-bottom:12px">כל המידע מהמעון הזה יישלח ל-Claude ליצירת הדוח</div>
+    <label class="form-label">חודש</label>
+    <select class="form-select" id="profile-report-month">
+      <option>ינואר</option><option>פברואר</option><option>מרץ</option>
+      <option>אפריל</option><option>מאי</option><option selected>יוני</option>
+      <option>יולי</option><option>אוגוסט</option><option>ספטמבר</option>
+      <option>אוקטובר</option><option>נובמבר</option><option>דצמבר</option>
+    </select>
+    <label class="form-label">🎙️ הערות / תמלול הקלטה</label>
+    <textarea class="form-textarea" id="profile-report-notes" placeholder="הדביקי כאן תמלול הקלטה או הערות נוספות..." style="min-height:100px"></textarea>
+    <div style="background:var(--primary-pale);border-radius:var(--radius-sm);padding:12px;margin-bottom:12px;font-size:13px;color:var(--primary);line-height:1.7">
+      💡 הדוח יכלול אוטומטית:<br>
+      ✓ כל הביקורים שתיעדת<br>
+      ✓ ילדים באיתור מוקדם<br>
+      ✓ סיכום למפגש הבא
+    </div>
+    <button class="action-btn" onclick="openClaudeReportFromProfile()" style="display:flex;align-items:center;justify-content:center;gap:8px">
+      <span>✨</span> צרי דוח עם Claude
+    </button>
+    <button class="action-btn secondary" onclick="showReportEditorFromProfile()" style="margin-top:8px">
+      ← עברי לעריכת דוח קיים
+    </button>
+  </div>
+
+  <div class="tab-content" id="tab-messages">
+    <div style="font-size:13px;color:var(--text-muted);margin-bottom:10px">כתבי הודעה למנהלת — תוכלי לערוך לפני השליחה</div>
+    <label class="form-label">תבנית מהירה</label>
+    <select class="form-select" id="msg-template" onchange="applyTemplate()">
+      <option value="">— בחרי תבנית —</option>
+      <option value="visit">סיכום ביקור</option>
+      <option value="reminder">תזכורת</option>
+      <option value="praise">חיזוק חיובי</option>
+      <option value="followup">מעקב אחרי הדרכה</option>
+    </select>
+    <label class="form-label">הודעה</label>
+    <textarea class="form-textarea" id="msg-text" placeholder="כתבי את ההודעה כאן..." style="min-height:140px"></textarea>
+    <button class="action-btn" onclick="sendWhatsApp()" style="background:#25D366;display:flex;align-items:center;justify-content:center;gap:8px">
+      <span style="font-size:20px">📱</span> פתחי בוואטסאפ
+    </button>
+    <div style="font-size:12px;color:var(--text-muted);text-align:center;margin-top:8px">ההודעה תיפתח בוואטסאפ מוכנה לשליחה</div>
+  </div>
+</div>
+
+<!-- ALL VISITS -->
+<div class="screen" id="screen-visits">
+  <div style="padding:16px 20px">
+    <div style="font-size:18px;font-weight:700;margin-bottom:12px;color:var(--primary)">כל הביקורים</div>
+    <div id="all-visits-list"><div style="color:var(--text-muted);font-size:14px;text-align:center;padding:30px">עדיין לא תועד אף ביקור.<br><br>לחצי על "ביקור חדש" כדי להתחיל!</div></div>
+    <button class="action-btn" onclick="openVisitModal()" style="margin-top:8px">＋ ביקור חדש</button>
+  </div>
+</div>
+
+<!-- REPORTS -->
+<div class="screen" id="screen-reports">
+  <!-- STEP 1: הכנת הדוח -->
+  <div id="report-step1" style="padding:20px">
+    <div style="font-size:18px;font-weight:700;margin-bottom:6px;color:var(--primary)">דוח הדרכה חודשי</div>
+    <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px">שלב 1: בחרי מעון וחודש</div>
+
+    <label class="form-label">מעון</label>
+    <select class="form-select" id="report-daycare-select"></select>
+
+    <label class="form-label">חודש</label>
+    <select class="form-select" id="report-month">
+      <option>ינואר</option><option>פברואר</option><option>מרץ</option>
+      <option>אפריל</option><option>מאי</option><option selected>יוני</option>
+      <option>יולי</option><option>אוגוסט</option><option>ספטמבר</option>
+      <option>אוקטובר</option><option>נובמבר</option><option>דצמבר</option>
+    </select>
+
+    <!-- הקלטה קולית -->
+    <label class="form-label">🎙️ הקלטה קולית</label>
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:14px">
+      
+      <div style="background:var(--primary-pale);border-radius:8px;padding:12px;font-size:13px;color:var(--primary);line-height:1.9;text-align:right">
+        <b>תהליך ההקלטה — 3 צעדים:</b><br>
+        <b>1.</b> פתחי את אפליקציית <b>מקליט הקול</b> בטלפון (מובנית בסמסונג)<br>
+        <b>2.</b> הקליטי את ההתרשמות שלך<br>
+        <b>3.</b> לחצי כאן ← Claude יתמלל לך הכל:
+      </div>
+
+      <button onclick="openClaudeForTranscription()" style="width:100%;margin-top:10px;background:var(--primary);color:white;border:none;border-radius:10px;padding:14px;font-size:14px;font-family:Heebo,sans-serif;cursor:pointer;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px">
+        <span>✨</span> שלחי הקלטה ל-Claude לתמלול
+      </button>
+      <div style="font-size:11px;color:var(--text-muted);text-align:center;margin-top:6px">יפתח Claude — שלחי לו את קובץ ההקלטה, הוא יתמלל</div>
+    </div>
+
+    <label class="form-label">תמלול / הערות</label>
+    <textarea class="form-textarea" id="report-notes" placeholder="כאן יופיע התמלול של ההקלטה שלך, או הכניסי הערות ידנית..." style="min-height:100px"></textarea>
+
+    <div style="background:var(--primary-pale);border-radius:var(--radius-sm);padding:12px;margin-bottom:12px;font-size:13px;color:var(--primary);line-height:1.6">
+      💡 האפליקציה תעביר ל-Claude את ההקלטה שלך + כל ביקורי המעון. Claude יכתוב דוח מקצועי בעברית חמה!
+    </div>
+
+    <button class="action-btn" onclick="openClaudeReport()" style="display:flex;align-items:center;justify-content:center;gap:8px">
+      <span>✨</span> צרי דוח עם Claude
+    </button>
+
+    <div style="height:16px"></div>
+    <div style="font-size:13px;font-weight:600;color:var(--text-muted);margin-bottom:6px">ביקורים שיכנסו לדוח:</div>
+    <div id="report-visits-preview"></div>
+
+    <button class="action-btn secondary" onclick="showReportEditor()" style="margin-top:16px">
+      ← עברי לעריכת הדוח
+    </button>
+  </div>
+
+  <!-- STEP 2: עריכה ושמירה -->
+  <div id="report-step2" style="display:none;padding:20px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+      <div style="cursor:pointer;color:var(--primary);font-size:14px" onclick="document.getElementById('report-step1').style.display='block';document.getElementById('report-step2').style.display='none'">→ חזרה</div>
+      <div style="font-size:18px;font-weight:700;color:var(--primary);flex:1">עריכת הדוח</div>
+    </div>
+
+    <label class="form-label">כותרת הדוח</label>
+    <input class="form-input" type="text" id="report-title" placeholder="דוח הדרכה — [שם מעון] — [חודש] 2026">
+
+    <label class="form-label">תוכן הדוח (ערכי כרצונך)</label>
+    <textarea class="form-textarea" id="report-body" placeholder="הדביקי כאן את הדוח שכתב Claude וערכי לפי הצורך..." style="min-height:300px;font-size:14px;line-height:1.8"></textarea>
+
+    <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
+      <button class="action-btn" onclick="saveAndDownloadWord()" style="display:flex;align-items:center;justify-content:center;gap:8px">
+        <span>📄</span> שמרי והורד כקובץ Word
+      </button>
+      <button class="action-btn secondary" onclick="saveAndShareWhatsApp()" style="display:flex;align-items:center;justify-content:center;gap:8px">
+        <span>📱</span> שמרי ושלחי למנהלת בוואטסאפ
+      </button>
+    </div>
+    <div style="font-size:12px;color:var(--text-muted);text-align:center;margin-top:8px">הדוח נשמר בהיסטוריה שלך אוטומטית</div>
+  </div>
+
+  <!-- STEP 3: היסטוריית דוחות -->
+  <div id="report-step3" style="display:none;padding:20px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+      <div style="cursor:pointer;color:var(--primary);font-size:14px" onclick="showStep(1)">→ חזרה</div>
+      <div style="font-size:18px;font-weight:700;color:var(--primary);flex:1">דוחות ששלחתי</div>
+    </div>
+    <div id="reports-history-list"></div>
+  </div>
+
+  <!-- כפתור היסטוריה -->
+  <div id="report-history-btn-wrap" style="padding:0 20px 20px">
+    <button class="action-btn secondary" onclick="showStep(3)" style="display:flex;align-items:center;justify-content:center;gap:8px">
+      <span>📚</span> דוחות קודמים
+    </button>
+  </div>
+</div>
+
+<!-- MODAL: NEW VISIT -->
+<div class="modal-overlay" id="visit-modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">📋 תיעוד ביקור חדש</div>
+    <label class="form-label">מעון</label>
+    <select class="form-select" id="visit-daycare-select"></select>
+    <label class="form-label">תאריך</label>
+    <input class="form-input" type="date" id="visit-date-input">
+    <label class="form-label">סוג ביקור</label>
+    <select class="form-select" id="visit-type">
+      <option>תצפית</option>
+      <option>הדרכת צוות</option>
+      <option>שיחה עם מנהלת</option>
+      <option>ביקור שגרתי</option>
+      <option>ביקור פיקוח</option>
+    </select>
+    <label class="form-label">סיכום כללי</label>
+    <textarea class="form-textarea" id="visit-summary" placeholder="תארי את הביקור..."></textarea>
+    <label class="form-label">✓ נקודות לשימור</label>
+    <textarea class="form-textarea" id="visit-strengths" placeholder="מה עבד טוב?" style="min-height:60px"></textarea>
+    <label class="form-label">⚑ נקודות לשיפור</label>
+    <textarea class="form-textarea" id="visit-improve" placeholder="מה צריך לשפר?" style="min-height:60px"></textarea>
+    <label class="form-label">המלצות לצוות</label>
+    <textarea class="form-textarea" id="visit-reco" placeholder="המלצות..." style="min-height:60px"></textarea>
+    <button class="action-btn" onclick="saveVisit()">שמירה ✓</button>
+    <button class="action-btn secondary" style="margin-top:8px" onclick="closeModal()">ביטול</button>
+  </div>
+</div>
+
+<!-- MODAL: ADD DAYCARE -->
+<div class="modal-overlay" id="add-daycare-modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">🏫 מעון חדש</div>
+    <label class="form-label">שם המעון</label>
+    <input class="form-input" type="text" id="new-name" placeholder="שם המעון...">
+    <label class="form-label">שם המנהלת</label>
+    <input class="form-input" type="text" id="new-manager" placeholder="שם המנהלת...">
+    <label class="form-label">טלפון</label>
+    <input class="form-input" type="tel" id="new-phone" placeholder="050-0000000">
+    <label class="form-label">כתובת</label>
+    <input class="form-input" type="text" id="new-address" placeholder="כתובת...">
+    <label class="form-label">מספר כיתות</label>
+    <input class="form-input" type="number" id="new-classes" placeholder="3">
+    <label class="form-label">גילאים</label>
+    <input class="form-input" type="text" id="new-ages" placeholder="עד 1, 1-2, 2-3">
+    <label class="form-label">הערות</label>
+    <textarea class="form-textarea" id="new-notes" placeholder="הערות..." style="min-height:60px"></textarea>
+    <button class="action-btn" onclick="saveDaycare()">הוסיפי מעון ✓</button>
+    <button class="action-btn secondary" style="margin-top:8px" onclick="closeModal()">ביטול</button>
+  </div>
+</div>
+
+<!-- MODAL: ביקור מתוכנן -->
+<div class="modal-overlay" id="add-planned-modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">📅 ביקור מתוכנן</div>
+    <label class="form-label">מעון</label>
+    <select class="form-select" id="planned-daycare"></select>
+    <label class="form-label">תאריך</label>
+    <input class="form-input" type="date" id="planned-date">
+    <label class="form-label">שעה (אופציונלי)</label>
+    <input class="form-input" type="time" id="planned-time">
+    <label class="form-label">סוג ביקור</label>
+    <select class="form-select" id="planned-type">
+      <option>תצפית</option>
+      <option>הדרכת צוות</option>
+      <option>שיחה עם מנהלת</option>
+      <option>ביקור שגרתי</option>
+      <option>ביקור פיקוח</option>
+    </select>
+    <label class="form-label">הערה</label>
+    <input class="form-input" type="text" id="planned-note" placeholder="הערה קצרה...">
+    <button class="action-btn" onclick="savePlannedVisit()">שמרי ✓</button>
+    <button class="action-btn secondary" style="margin-top:8px" onclick="closeModal()">ביטול</button>
+  </div>
+</div>
+
+<!-- MODAL: הוספת איש צוות -->
+<div class="modal-overlay" id="add-staff-modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">👤 הוספת איש צוות</div>
+    <label class="form-label">שם מלא</label>
+    <input class="form-input" type="text" id="staff-name-input" placeholder="שם...">
+    <label class="form-label">תפקיד</label>
+    <select class="form-select" id="staff-role-input">
+      <option>גננת — תינוקיה</option>
+      <option>גננת — פעוטות</option>
+      <option>גננת — בוגרים</option>
+      <option>סייעת</option>
+      <option>עובדת סוציאלית</option>
+      <option>אחר</option>
+    </select>
+    <label class="form-label">טלפון (אופציונלי)</label>
+    <input class="form-input" type="tel" id="staff-phone-input" placeholder="050-0000000">
+    <label class="form-label">הערות</label>
+    <textarea class="form-textarea" id="staff-notes-input" placeholder="הערות על תפקוד, מעקב..." style="min-height:60px"></textarea>
+    <button class="action-btn" onclick="saveStaff()">הוסיפי ✓</button>
+    <button class="action-btn secondary" style="margin-top:8px" onclick="closeModal()">ביטול</button>
+  </div>
+</div>
+
+<!-- MODAL: הוספת פריט ידני ללוח הבקרה -->
+<div class="modal-overlay" id="add-dashboard-modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">⚡ הוספה ללוח הבקרה</div>
+    <label class="form-label">דחיפות</label>
+    <select class="form-select" id="dash-priority">
+      <option value="1">🔴 דחוף</option>
+      <option value="2">🟡 לטיפול השבוע</option>
+      <option value="3">🟠 לתשומת לב</option>
+    </select>
+    <label class="form-label">כותרת</label>
+    <input class="form-input" type="text" id="dash-title" placeholder="למשל: גן הפרחים — שיחה עם מנהלת">
+    <label class="form-label">פרטים</label>
+    <textarea class="form-textarea" id="dash-text" placeholder="פרטים נוספים..." style="min-height:70px"></textarea>
+    <button class="action-btn" onclick="saveDashboardItem()">הוסיפי ✓</button>
+    <button class="action-btn secondary" style="margin-top:8px" onclick="closeModal()">ביטול</button>
+  </div>
+</div>
+
+<nav class="bottom-nav">
+  <button class="nav-item active" id="nav-home" onclick="goTo('home')"><span class="nav-icon">🏠</span>בית</button>
+  <button class="nav-item" id="nav-daycares" onclick="goTo('daycares')"><span class="nav-icon">🏫</span>מעונות</button>
+  <button class="nav-item" id="nav-tracking" onclick="goTo('tracking')"><span class="nav-icon">👁️</span>איתור</button>
+  <button class="nav-item" id="nav-reports" onclick="goTo('reports')"><span class="nav-icon">📊</span>דוחות</button>
+</nav>
+
+<script>
+const daycares = [
+  { id:1,  name:'גן בראשית',      manager:'אסנת ואבי',     phone:'054-554-0307', address:'ז\'בוטינסקי 31 באר יעקב', classes:4, ages:'עד 1, 1-2, 2-2.5, 2-3', lastVisit:'31.5.26', notes:'בי"ס תלמים' },
+  { id:2,  name:'האור שבי',       manager:'סימה',          phone:'050-214-2412', address:'חרוד 3 באר יעקב',          classes:3, ages:'עד 1, 1-2, 2-3',         lastVisit:'', notes:'' },
+  { id:3,  name:'גן הפיקוס',      manager:'שירה',          phone:'050-266-4487', address:'מאזה 59 תל אביב',          classes:1, ages:'חוגגים 2 ו-3',           lastVisit:'', notes:'' },
+  { id:4,  name:'גן דניאל',       manager:'דניאל',         phone:'',             address:'השומר 3 תל אביב',          classes:1, ages:'',                        lastVisit:'', notes:'' },
+  { id:5,  name:'הלב של בת אל',   manager:'בת אל',         phone:'055-885-8773', address:'יהודה 2 באר יעקב',         classes:2, ages:'1-2, 2-3',               lastVisit:'', notes:'לקראת פיקוח' },
+  { id:6,  name:'פעוטון ילדות',   manager:'מורן ושירן',    phone:'050-230-9684', address:'האורן 16 באר יעקב',        classes:3, ages:'עד 1, 1-2, 2-3',         lastVisit:'31/4/26', notes:'' },
+  { id:7,  name:'גן לבנה',        manager:'ענת ואסנת',     phone:'052-834-2106', address:'הנביאים 4 חולון',          classes:2, ages:'1-2, 2-3',               lastVisit:'', notes:'' },
+  { id:8,  name:'גוזלים',         manager:'עדנה',          phone:'050-834-8072', address:'הגפן באר יעקב',            classes:2, ages:'1-2, 2-3',               lastVisit:'', notes:'' },
+  { id:9,  name:'משפחתון יפעת',   manager:'יפעת',          phone:'050-539-6610', address:'ניסנבוים 8 תל אביב',       classes:1, ages:'',                        lastVisit:'', notes:'' },
+  { id:10, name:'ענבלים',         manager:'עינת',          phone:'052-663-3517', address:'רבי מאיר בעל הנס באר יעקב',classes:2, ages:'1-2, 2-3',               lastVisit:'', notes:'' },
+  { id:11, name:'ויצ"ו אסף הרופא',manager:'אדיסה',         phone:'052-889-7794', address:'אסף הרופא',                classes:3, ages:'עד 1, 2, 3',             lastVisit:'', notes:'' },
+  { id:12, name:'הגן של שלי',     manager:'שלי',           phone:'054-479-2620', address:'חבצלת 10 באר יעקב',        classes:6, ages:'',                        lastVisit:'', notes:'' },
+  { id:13, name:'חוויה בג\'ונגל', manager:'מור',           phone:'',             address:'האחו הפורח',               classes:2, ages:'1-2, 2-3',               lastVisit:'', notes:'' },
+  { id:14, name:'פינוקים',        manager:'גליה',          phone:'054-242-9423', address:'הגפן 9 באר יעקב',          classes:3, ages:'עד 1, 2, 3',             lastVisit:'', notes:'' },
+  { id:15, name:'ילדות פנויה מעורבות הורים', manager:'גבריאלה', phone:'054-785-0685', address:'בני דן 62 תל אביב', classes:1, ages:'1.4-3',                  lastVisit:'', notes:'' },
+  { id:16, name:'הבית השקוף',     manager:'שני והדר',      phone:'054-911-6968', address:'באר יעקב',                 classes:4, ages:'עד 1, 1-2, 2-2.5, 2-3', lastVisit:'', notes:'' },
+  { id:17, name:'חלומוטף',        manager:'מיכל',          phone:'052-520-0331', address:'הרב קוק 26 באר יעקב',      classes:3, ages:'1, 2, 3',                lastVisit:'', notes:'' },
+  { id:18, name:'מקום לגדול',     manager:'אדר',           phone:'050-438-9061', address:'בן גוריון 226 גבעתיים',    classes:1, ages:'',                        lastVisit:'', notes:'' },
+];
+
+const emojis = ['🌸','🐻','🌈','⭐','🌙','🦋','🌻','🐬','🦁','🌊','🎨','🌺','🍀','🎠','🏡','🌟','🎪','🌴'];
+let visits = JSON.parse(localStorage.getItem('nm_visits') || '[]');
+let extraDaycares = JSON.parse(localStorage.getItem('nm_extra_daycares') || '[]');
+extraDaycares.forEach(d => daycares.push(d));
+let currentDaycare = null;
+
+let trackingItems = JSON.parse(localStorage.getItem('nm_tracking') || '[]');
+let pendingTrackActions = [];
+
+let manualDashItems = JSON.parse(localStorage.getItem('nm_dash_items') || '[]');
+
+// ===== ביקורים מתוכננים =====
+let plannedVisits = JSON.parse(localStorage.getItem('nm_planned') || '[]');
+
+function saveToStorage() {
+  localStorage.setItem('nm_visits', JSON.stringify(visits));
+  localStorage.setItem('nm_extra_daycares', JSON.stringify(extraDaycares));
+  localStorage.setItem('nm_tracking', JSON.stringify(trackingItems));
+  localStorage.setItem('nm_dash_items', JSON.stringify(manualDashItems));
+  localStorage.setItem('nm_staff', JSON.stringify(staffData));
+  localStorage.setItem('nm_planned', JSON.stringify(plannedVisits));
+}
+
+function openAddPlanned() {
+  const sel = document.getElementById('planned-daycare');
+  sel.innerHTML = daycares.map(d => `<option>${d.name}</option>`).join('');
+  document.getElementById('planned-date').value = new Date().toISOString().split('T')[0];
+  document.getElementById('planned-time').value = '';
+  document.getElementById('planned-note').value = '';
+  document.getElementById('add-planned-modal').classList.add('open');
+}
+
+function savePlannedVisit() {
+  const date = document.getElementById('planned-date').value;
+  if (!date) { showToast('נא לבחור תאריך'); return; }
+  plannedVisits.push({
+    id: Date.now(),
+    daycare: document.getElementById('planned-daycare').value,
+    date,
+    time: document.getElementById('planned-time').value,
+    type: document.getElementById('planned-type').value,
+    note: document.getElementById('planned-note').value,
+    done: false,
+  });
+  // מיין לפי תאריך
+  plannedVisits.sort((a,b) => new Date(a.date) - new Date(b.date));
+  saveToStorage();
+  closeModal();
+  renderPlannedVisits();
+  showToast('הביקור נוסף ✓');
+}
+
+function renderPlannedVisits() {
+  const container = document.getElementById('planned-visits-list');
+  if (!container) return;
+  const today = new Date();
+  today.setHours(0,0,0,0);
+
+  // סנן — רק עתידיים + היום
+  const upcoming = plannedVisits.filter(v => !v.done && new Date(v.date) >= today);
+
+  if (upcoming.length === 0) {
+    container.innerHTML = `<div style="color:var(--text-muted);font-size:13px;padding:4px 0">אין ביקורים מתוכננים — לחצי ＋ להוסיף</div>`;
+    return;
+  }
+
+  const days = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+  const months = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+
+  container.innerHTML = upcoming.map(v => {
+    const d = new Date(v.date);
+    const isToday = d.toDateString() === today.toDateString();
+    const isTomorrow = d.toDateString() === new Date(today.getTime() + 86400000).toDateString();
+    const dayLabel = isToday ? '📍 היום' : isTomorrow ? '⏰ מחר' : `יום ${days[d.getDay()]}`;
+    const dateStr = `${d.getDate()} ב${months[d.getMonth()]}`;
+    const borderColor = isToday ? '#E63946' : isTomorrow ? 'var(--warning)' : 'var(--primary-light)';
+
+    return `
+      <div style="background:var(--card);border-radius:var(--radius-sm);padding:12px 14px;border:1px solid var(--border);border-right:3px solid ${borderColor};display:flex;align-items:center;gap:10px">
+        <div style="flex:1">
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+            <span style="font-size:13px;font-weight:700;color:${borderColor}">${dayLabel}</span>
+            <span style="font-size:12px;color:var(--text-muted)">${dateStr}${v.time ? ' · ' + v.time : ''}</span>
+          </div>
+          <div style="font-size:14px;font-weight:600;margin-top:2px">${v.daycare}</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:1px">${v.type}${v.note ? ' · ' + v.note : ''}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">
+          <button onclick="completePlanned(${v.id})" style="background:var(--primary-pale);color:var(--primary);border:none;border-radius:8px;padding:5px 10px;font-size:11px;font-family:Heebo,sans-serif;cursor:pointer;white-space:nowrap">✓ בוצע</button>
+          <button onclick="deletePlanned(${v.id})" style="background:#FEE;color:#C00;border:none;border-radius:8px;padding:5px 10px;font-size:11px;font-family:Heebo,sans-serif;cursor:pointer">🗑️</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function completePlanned(id) {
+  const v = plannedVisits.find(x => x.id === id);
+  if (v) {
+    v.done = true;
+    saveToStorage();
+    renderPlannedVisits();
+    // פתח תיעוד ביקור עם הפרטים מוכנים
+    const sel = document.getElementById('visit-daycare-select');
+    if (sel) sel.innerHTML = daycares.map(d => `<option>${d.name}</option>`).join('');
+    if (sel) sel.value = v.daycare;
+    document.getElementById('visit-date-input').value = v.date;
+    document.getElementById('visit-modal').classList.add('open');
+    showToast('מעבר לתיעוד הביקור ✓');
+  }
+}
+
+function deletePlanned(id) {
+  plannedVisits = plannedVisits.filter(x => x.id !== id);
+  saveToStorage();
+  renderPlannedVisits();
+  showToast('נמחק');
+}
+let staffData = JSON.parse(localStorage.getItem('nm_staff') || '{}');
+
+// ניקוי כפילויות — מסיר אנשי צוות שנשמרו בטעות עם שם המנהלת
+function cleanStaffDuplicates() {
+  let changed = false;
+  daycares.forEach(d => {
+    if (staffData[d.name]) {
+      const managerNames = d.manager.split(/[,\/ו]/).map(n => n.trim().replace(/\s+/g,' '));
+      const before = staffData[d.name].length;
+      staffData[d.name] = staffData[d.name].filter(s => {
+        const sName = s.name.trim().replace(/\s+/g,' ');
+        return !managerNames.some(mn => mn === sName || sName.includes(mn) || mn.includes(sName));
+      });
+      if (staffData[d.name].length !== before) changed = true;
+    }
+  });
+  if (changed) localStorage.setItem('nm_staff', JSON.stringify(staffData));
+}
+
+// איפוס חד-פעמי של staffData אם יש כפילויות
+if (!localStorage.getItem('nm_staff_cleaned_v2')) {
+  staffData = {};
+  localStorage.setItem('nm_staff', '{}');
+  localStorage.setItem('nm_staff_cleaned_v2', '1');
+}
+
+cleanStaffDuplicates();
+
+function saveToStorage() {
+  localStorage.setItem('nm_visits', JSON.stringify(visits));
+  localStorage.setItem('nm_extra_daycares', JSON.stringify(extraDaycares));
+  localStorage.setItem('nm_tracking', JSON.stringify(trackingItems));
+  localStorage.setItem('nm_dash_items', JSON.stringify(manualDashItems));
+  localStorage.setItem('nm_staff', JSON.stringify(staffData));
+}
+
+function openAddStaff() {
+  ['staff-name-input','staff-phone-input','staff-notes-input'].forEach(id => document.getElementById(id).value = '');
+  const modal = document.getElementById('add-staff-modal');
+  modal.dataset.editManager = '';
+  modal.dataset.editId = '';
+  modal.classList.add('open');
+}
+
+function openEditManager(daycareName) {
+  const d = daycares.find(x => x.name === daycareName);
+  if (!d) return;
+  document.getElementById('staff-name-input').value = d.manager;
+  document.getElementById('staff-phone-input').value = d.phone || '';
+  document.getElementById('staff-notes-input').value = '';
+  const modal = document.getElementById('add-staff-modal');
+  modal.dataset.editManager = daycareName;
+  modal.dataset.editId = '';
+  modal.classList.add('open');
+}
+
+function openEditStaff(daycareName, id) {
+  const s = (staffData[daycareName] || []).find(x => x.id === id);
+  if (!s) return;
+  document.getElementById('staff-name-input').value = s.name;
+  document.getElementById('staff-role-input').value = s.role;
+  document.getElementById('staff-phone-input').value = s.phone || '';
+  document.getElementById('staff-notes-input').value = s.notes || '';
+  const modal = document.getElementById('add-staff-modal');
+  modal.dataset.editManager = '';
+  modal.dataset.editId = id;
+  modal.dataset.editDaycare = daycareName;
+  modal.classList.add('open');
+}
+
+function saveStaff() {
+  const name = document.getElementById('staff-name-input').value.trim();
+  if (!name) { showToast('נא להכניס שם'); return; }
+  const modal = document.getElementById('add-staff-modal');
+  const editManager = modal.dataset.editManager;
+  const editId = modal.dataset.editId;
+  const editDaycare = modal.dataset.editDaycare;
+  const daycareName = currentDaycare ? currentDaycare.name : '';
+
+  if (editManager) {
+    const d = daycares.find(x => x.name === editManager);
+    if (d) { d.manager = name; if (document.getElementById('staff-phone-input').value) d.phone = document.getElementById('staff-phone-input').value; }
+    saveToStorage();
+    renderStaffTab(editManager);
+    modal.dataset.editManager = '';
+    closeModal();
+    showToast('פרטי המנהלת עודכנו ✓');
+    return;
+  }
+
+  if (editId) {
+    const list = staffData[editDaycare] || [];
+    const idx = list.findIndex(x => x.id === parseInt(editId));
+    if (idx > -1) list[idx] = { ...list[idx], name, role: document.getElementById('staff-role-input').value, phone: document.getElementById('staff-phone-input').value, notes: document.getElementById('staff-notes-input').value };
+    saveToStorage();
+    renderStaffTab(editDaycare);
+    modal.dataset.editId = '';
+    closeModal();
+    showToast('עודכן ✓');
+    return;
+  }
+
+  if (!staffData[daycareName]) staffData[daycareName] = [];
+  staffData[daycareName].push({ id: Date.now(), name, role: document.getElementById('staff-role-input').value, phone: document.getElementById('staff-phone-input').value, notes: document.getElementById('staff-notes-input').value });
+  saveToStorage();
+  closeModal();
+  renderStaffTab(daycareName);
+  showToast('איש הצוות נוסף ✓');
+}
+
+function renderStaffTab(daycareName) {
+  const d = daycares.find(x => x.name === daycareName);
+  const managerName = d ? d.manager : '';
+  const managerInitials = managerName.trim().split(/\s+/).map(w=>w[0]).join('').slice(0,2);
+  const extra = (staffData[daycareName] || []).filter(s => s.name.trim() !== managerName.trim());
+
+  let html = `
+    <div class="staff-item">
+      <div class="staff-avatar">${managerInitials}</div>
+      <div style="flex:1">
+        <div class="staff-name">${managerName}</div>
+        <div class="staff-role">מנהלת</div>
+      </div>
+      <button onclick="openEditManager('${daycareName}')" style="background:var(--primary-pale);color:var(--primary);border:none;border-radius:8px;padding:5px 10px;font-size:12px;font-family:Heebo,sans-serif;cursor:pointer">✏️ ערכי</button>
+    </div>`;
+
+  extra.forEach(s => {
+    const initials = s.name.trim().split(/\s+/).map(w=>w[0]).join('').slice(0,2);
+    html += `
+      <div class="staff-item">
+        <div class="staff-avatar">${initials}</div>
+        <div style="flex:1">
+          <div class="staff-name">${s.name}</div>
+          <div class="staff-role">${s.role}${s.phone ? ' · ' + s.phone : ''}</div>
+          ${s.notes ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px">${s.notes}</div>` : ''}
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <button onclick="openEditStaff('${daycareName}',${s.id})" style="background:var(--primary-pale);color:var(--primary);border:none;border-radius:8px;padding:4px 8px;font-size:11px;font-family:Heebo,sans-serif;cursor:pointer">✏️</button>
+          <button onclick="deleteStaff('${daycareName}',${s.id})" style="background:#FEE;color:#C00;border:none;border-radius:8px;padding:4px 8px;font-size:11px;font-family:Heebo,sans-serif;cursor:pointer">🗑️</button>
+        </div>
+      </div>`;
+  });
+
+  document.getElementById('staff-list').innerHTML = html;
+}
+
+function deleteStaff(daycareName, id) {
+  if (staffData[daycareName]) {
+    staffData[daycareName] = staffData[daycareName].filter(s => s.id !== id);
+    saveToStorage();
+    renderStaffTab(daycareName);
+    showToast('נמחק');
+  }
+}
+
+function goTo(screen) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('screen-' + screen).classList.add('active');
+  const nav = document.getElementById('nav-' + screen);
+  if (nav) nav.classList.add('active');
+  const titles = { home:'ניהול מעונות', daycares:'המעונות שלי', visits:'ביקורים', reports:'דוחות', profile:'פרופיל מעון', tracking:'איתור מוקדם ובקרה' };
+  const subs = { home:'שלום, מאיה 👋', daycares:'18 מעונות', visits:'היסטוריית ביקורים', reports:'דוחות חודשיים', profile:'', tracking:'' };
+  document.getElementById('topbar-title').textContent = titles[screen] || 'ניהול מעונות';
+  document.getElementById('topbar-sub').textContent = subs[screen] || '';
+  if (screen === 'daycares') renderDaycares(daycares);
+  if (screen === 'visits') renderAllVisits();
+  if (screen === 'tracking') renderTrackingScreen();
+  if (screen === 'home') { renderHomeAlerts(); renderPlannedVisits(); }
+  if (screen === 'reports') {
+    const sel = document.getElementById('report-daycare-select');
+    sel.innerHTML = daycares.map(d => `<option>${d.name}</option>`).join('');
+    sel.onchange = updateReportPreview;
+    updateReportPreview();
+  }
+  window.scrollTo(0,0);
+}
+
+function openProfile(d) {
+  currentDaycare = d;
+  document.getElementById('profile-name').textContent = d.name;
+  let meta = `מנהלת: ${d.manager}`;
+  if (d.classes) meta += ` · ${d.classes} כיתות`;
+  if (d.ages) meta += `\n${d.ages}`;
+  if (d.address) meta += `\n📍 ${d.address}`;
+  document.getElementById('profile-meta').textContent = meta;
+
+  // details tab
+  let details = '';
+  if (d.phone) details += `<div class="info-row"><span class="info-label">📞 טלפון</span><span class="info-value">${d.phone}</span></div>`;
+  if (d.address) details += `<div class="info-row"><span class="info-label">📍 כתובת</span><span class="info-value">${d.address}</span></div>`;
+  if (d.classes) details += `<div class="info-row"><span class="info-label">🏫 כיתות</span><span class="info-value">${d.classes}</span></div>`;
+  if (d.ages) details += `<div class="info-row"><span class="info-label">👶 גילאים</span><span class="info-value">${d.ages}</span></div>`;
+  if (d.lastVisit) details += `<div class="info-row"><span class="info-label">📅 ביקור אחרון</span><span class="info-value">${d.lastVisit}</span></div>`;
+  if (d.notes) details += `<div class="info-row"><span class="info-label">📝 הערות</span><span class="info-value"><span class="note-badge">${d.notes}</span></span></div>`;
+  document.getElementById('profile-details').innerHTML = details;
+
+  // visits and staff for this daycare
+  renderProfileVisits(d.name);
+  renderStaffTab(d.name);
+
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.querySelector('.tab-btn').classList.add('active');
+  document.getElementById('tab-info').classList.add('active');
+
+  goTo('profile');
+}
+
+function renderProfileVisits(name) {
+  const dVisits = visits.filter(v => v.daycare === name);
+  const container = document.getElementById('profile-visits-list');
+  if (dVisits.length === 0) {
+    container.innerHTML = '<div style="color:var(--text-muted);font-size:14px;text-align:center;padding:20px">עדיין לא תועדו ביקורים למעון זה</div>';
+    return;
+  }
+  container.innerHTML = dVisits.slice().reverse().map(v => `
+    <div class="visit-item">
+      <div class="visit-date">📅 ${v.date} · ${v.type}</div>
+      <div class="visit-summary">${v.summary || ''}</div>
+      <div class="visit-tags">
+        ${v.strengths ? `<span class="visit-tag">✓ ${v.strengths}</span>` : ''}
+        ${v.improve ? `<span class="visit-tag improve">⚑ ${v.improve}</span>` : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderAllVisits() {
+  const container = document.getElementById('all-visits-list');
+  if (visits.length === 0) {
+    container.innerHTML = '<div style="color:var(--text-muted);font-size:14px;text-align:center;padding:30px">עדיין לא תועד אף ביקור.<br><br>לחצי על "ביקור חדש" כדי להתחיל!</div>';
+    return;
+  }
+  container.innerHTML = visits.slice().reverse().map(v => `
+    <div class="visit-item">
+      <div class="visit-date">🏫 ${v.daycare} · 📅 ${v.date} · ${v.type}</div>
+      <div class="visit-summary">${v.summary || ''}</div>
+      <div class="visit-tags">
+        ${v.strengths ? `<span class="visit-tag">✓ ${v.strengths}</span>` : ''}
+        ${v.improve ? `<span class="visit-tag improve">⚑ ${v.improve}</span>` : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderDaycares(list) {
+  document.getElementById('daycare-list').innerHTML = list.map((d, i) => `
+    <div class="daycare-card" onclick='openProfile(${JSON.stringify(d).replace(/'/g,"&#39;")})'>
+      <div class="daycare-avatar">${emojis[daycares.indexOf(d) % emojis.length]}</div>
+      <div class="daycare-info">
+        <div class="daycare-name">${d.name}</div>
+        <div class="daycare-meta">${d.manager}${d.classes ? ' · ' + d.classes + ' כיתות' : ''}${d.notes ? ' · ⚑ ' + d.notes : ''}</div>
+      </div>
+      <div class="daycare-arrow">›</div>
+    </div>
+  `).join('');
+}
+
+function filterDaycares(q) {
+  renderDaycares(daycares.filter(d => d.name.includes(q) || d.manager.includes(q) || d.address.includes(q)));
+}
+
+function switchTab(e, id) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  e.target.classList.add('active');
+  if (id === 'tab-visits-p' && currentDaycare) renderProfileVisits(currentDaycare.name);
+  if (id === 'tab-staff' && currentDaycare) renderStaffTab(currentDaycare.name);
+  if (id === 'tab-early' && currentDaycare) renderProfileEarlyList(currentDaycare.name);
+}
+
+function openAddTrackingForProfile() {
+  if (!currentDaycare) return;
+  openAddTracking();
+  setTimeout(() => {
+    const sel = document.getElementById('track-daycare');
+    if (sel) sel.value = currentDaycare.name;
+  }, 50);
+}
+
+function renderProfileEarlyList(daycareName) {
+  const items = trackingItems.filter(t => t.daycare === daycareName && !t.done);
+  const container = document.getElementById('profile-early-list');
+  if (!container) return;
+  if (items.length === 0) {
+    container.innerHTML = '<div style="color:var(--text-muted);font-size:14px;text-align:center;padding:20px">אין ילדים באיתור מוקדם למעון זה</div>';
+    return;
+  }
+  container.innerHTML = items.map(t => `
+    <div class="visit-item" style="border-color:var(--accent);margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div>
+          <div style="font-size:15px;font-weight:600">👶 ${t.name}</div>
+          ${t.age ? `<div style="font-size:12px;color:var(--text-muted)">${t.age}</div>` : ''}
+        </div>
+        <button onclick="openEditTracking(${t.id})" style="background:var(--primary-pale);color:var(--primary);border:none;border-radius:8px;padding:4px 10px;font-size:12px;font-family:Heebo,sans-serif;cursor:pointer">✏️ עדכני</button>
+      </div>
+      <div style="font-size:13px;color:var(--text-muted);margin-top:6px;line-height:1.6">${t.desc}</div>
+      ${t.actions&&t.actions.length ? `<div class="visit-tags" style="margin-top:6px">${t.actions.map(a=>`<span class="visit-tag">${a}</span>`).join('')}</div>` : ''}
+      ${t.update ? `<div style="font-size:12px;color:var(--primary);margin-top:4px;font-style:italic">📝 ${t.update}</div>` : ''}
+      ${t.nextDate ? `<div style="font-size:12px;color:var(--warning);margin-top:4px">📅 מעקב הבא: ${t.nextDate}</div>` : ''}
+    </div>`).join('');
+}
+
+function openClaudeReportFromProfile() {
+  if (!currentDaycare) return;
+  const d = currentDaycare;
+  const month = document.getElementById('profile-report-month').value;
+  const notes = document.getElementById('profile-report-notes').value.trim();
+  const daycareVisits = visits.filter(v => v.daycare === d.name);
+  const relatedTracking = trackingItems.filter(t => t.daycare === d.name);
+
+  let visitsText = daycareVisits.length === 0
+    ? 'לא תועדו ביקורים רשמיים החודש.'
+    : daycareVisits.map((v, i) =>
+        `ביקור ${i+1} — ${v.date} (${v.type}):\nסיכום: ${v.summary||'—'}\nנקודות לשימור: ${v.strengths||'—'}\nנקודות לשיפור: ${v.improve||'—'}\nהמלצות: ${v.reco||'—'}`
+      ).join('\n\n');
+
+  let trackingText = relatedTracking.length > 0
+    ? '\n\n👶 ילדים באיתור מוקדם:\n' + relatedTracking.map(t =>
+        `• ${t.name}${t.age?' ('+t.age+')':''}: ${t.desc}${t.update?'\n  עדכון: '+t.update:''}${t.actions&&t.actions.length?'\n  פעולות: '+t.actions.join(', '):''}`
+      ).join('\n')
+    : '';
+
+  const prompt = `אני מאיה יעקב, מדריכה חינוכית.
+אנא כתבי עבורי דוח הדרכה חודשי מקצועי עבור:
+
+🏫 ${d.name}
+📍 ${d.address || '—'}
+🗓️ ${month} 2026
+
+━━━━━━━━━━━━━━━
+📋 תיעודי ביקורים:
+${visitsText}${trackingText}
+${notes ? `\n📝 הערות והקלטה:\n${notes}` : ''}
+━━━━━━━━━━━━━━━
+
+אנא כתבי דוח בעברית מקצועית, חמה ואנושית, במבנה הבא:
+
+**דוח הדרכה — ${d.name} — ${month} 2026**
+מדריכה: מאיה יעקב
+
+1. **סיכום ביקורים** — מה נצפה, איך הרגשת במעון
+2. **תהליכים פדגוגיים** — מה קורה עם הילדים והצוות
+3. **נקודות חוזק** — מה עובד טוב
+4. **אתגרים והמלצות** — מה צריך שיפור ואיך
+5. **סיכום למפגש ההדרכה הבא** — על מה נתמקד, מה לעבוד עליו
+
+כתבי בגוף ראשון מנקודת מבטי כמדריכה.`;
+
+  window.open(`https://claude.ai/new?q=${encodeURIComponent(prompt)}`, '_blank');
+}
+
+function showReportEditorFromProfile() {
+  if (!currentDaycare) return;
+  const month = document.getElementById('profile-report-month').value;
+  goTo('reports');
+  setTimeout(() => {
+    const sel = document.getElementById('report-daycare-select');
+    if (sel) { sel.innerHTML = daycares.map(d=>`<option>${d.name}</option>`).join(''); sel.value = currentDaycare.name; }
+    showStep(2);
+    document.getElementById('report-title').value = `דוח הדרכה — ${currentDaycare.name} — ${month} 2026`;
+  }, 150);
+}
+
+function openVisitModal() {
+  const sel = document.getElementById('visit-daycare-select');
+  sel.innerHTML = daycares.map(d => `<option>${d.name}</option>`).join('');
+  if (currentDaycare) sel.value = currentDaycare.name;
+  document.getElementById('visit-date-input').value = new Date().toISOString().split('T')[0];
+  document.getElementById('visit-summary').value = '';
+  document.getElementById('visit-strengths').value = '';
+  document.getElementById('visit-improve').value = '';
+  document.getElementById('visit-reco').value = '';
+  document.getElementById('visit-modal').classList.add('open');
+}
+
+function openAddDaycare() {
+  ['new-name','new-manager','new-phone','new-address','new-classes','new-ages','new-notes'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('add-daycare-modal').classList.add('open');
+}
+
+function closeModal() {
+  document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('open'));
+}
+
+function saveVisit() {
+  const v = {
+    daycare: document.getElementById('visit-daycare-select').value,
+    date: document.getElementById('visit-date-input').value,
+    type: document.getElementById('visit-type').value,
+    summary: document.getElementById('visit-summary').value,
+    strengths: document.getElementById('visit-strengths').value,
+    improve: document.getElementById('visit-improve').value,
+    reco: document.getElementById('visit-reco').value,
+  };
+  visits.push(v);
+  saveToStorage();
+  document.getElementById('visit-count').textContent = visits.length;
+  closeModal();
+  showToast('הביקור נשמר בהצלחה ✓');
+  if (currentDaycare && currentDaycare.name === v.daycare) renderProfileVisits(v.daycare);
+  renderAllVisits();
+}
+
+function saveDaycare() {
+  const name = document.getElementById('new-name').value.trim();
+  if (!name) { showToast('נא להכניס שם מעון'); return; }
+  const d = {
+    id: daycares.length + 1,
+    name,
+    manager: document.getElementById('new-manager').value,
+    phone: document.getElementById('new-phone').value,
+    address: document.getElementById('new-address').value,
+    classes: parseInt(document.getElementById('new-classes').value) || 0,
+    ages: document.getElementById('new-ages').value,
+    notes: document.getElementById('new-notes').value,
+    lastVisit: '',
+  };
+  daycares.push(d);
+  extraDaycares.push(d);
+  saveToStorage();
+  closeModal();
+  renderDaycares(daycares);
+  showToast('המעון נוסף בהצלחה ✓');
+}
+
+function applyTemplate() {
+  const t = document.getElementById('msg-template').value;
+  const name = currentDaycare ? currentDaycare.name : 'המעון';
+  const manager = currentDaycare ? currentDaycare.manager : 'שלום';
+  const templates = {
+    visit: `שלום ${manager},\nרציתי לסכם את ביקורי ב${name}.\n\nנקודות חיוביות:\n• \n\nנקודות לשיפור:\n• \n\nנשמח להמשיך לעבוד יחד 💜\nמאיה`,
+    reminder: `שלום ${manager},\nרציתי להזכיר לך בנוגע ל${name}.\n\n\n\nתודה,\nמאיה`,
+    praise: `שלום ${manager},\nרציתי לשלוח לך חיזוק חיובי! 🌟\n\nבביקורי ב${name} ראיתי:\n• \n\nכל הכבוד לך ולצוות!\nמאיה`,
+    followup: `שלום ${manager},\nעוקבת אחרי ההדרכה האחרונה ב${name}.\n\nאשמח לשמוע — מה השתנה?\n• \n\nתודה,\nמאיה`,
+  };
+  if (templates[t]) document.getElementById('msg-text').value = templates[t];
+}
+
+function sendWhatsApp() {
+  const msg = document.getElementById('msg-text').value.trim();
+  if (!msg) { showToast('נא לכתוב הודעה קודם'); return; }
+  const phone = currentDaycare && currentDaycare.phone
+    ? currentDaycare.phone.replace(/[-\s]/g,'').replace(/^0/, '972')
+    : '';
+  const encoded = encodeURIComponent(msg);
+  const url = phone
+    ? `https://wa.me/${phone}?text=${encoded}`
+    : `https://wa.me/?text=${encoded}`;
+  window.open(url, '_blank');
+}
+
+// ===== הקלטה =====
+function startVoiceNote() {
+  // פותח את מקליט הקול הפנימי של הטלפון
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'audio/*';
+  input.capture = 'microphone';
+  input.onchange = (e) => {
+    if (e.target.files && e.target.files[0]) {
+      document.getElementById('rec-status').textContent = 'ההקלטה התקבלה ✓ — שלחי ל-Claude לתמלול';
+      document.getElementById('rec-status').style.color = 'var(--primary)';
+      document.getElementById('rec-btn').textContent = '✓';
+      document.getElementById('rec-btn').style.background = '#25D366';
+    }
+  };
+  input.click();
+}
+
+function openClaudeForTranscription() {
+  const prompt = `אני מאיה, מדריכה חינוכית. אני שולחת לך הקלטה קולית מביקור במעון. אנא תמלל את ההקלטה בעברית ותסכם אותה בנקודות עיקריות — מה ראיתי, מה עבד טוב, ומה צריך שיפור.`;
+  window.open(`https://claude.ai/new?q=${encodeURIComponent(prompt)}`, '_blank');
+}
+
+let savedReports = JSON.parse(localStorage.getItem('nm_reports') || '[]');
+
+function showStep(n) {
+  document.getElementById('report-step1').style.display = n===1 ? 'block' : 'none';
+  document.getElementById('report-step2').style.display = n===2 ? 'block' : 'none';
+  document.getElementById('report-step3').style.display = n===3 ? 'block' : 'none';
+  document.getElementById('report-history-btn-wrap').style.display = n===3 ? 'none' : 'block';
+  if (n===3) renderReportsHistory();
+  window.scrollTo(0,0);
+}
+
+function saveReport() {
+  const title = document.getElementById('report-title').value.trim();
+  const body = document.getElementById('report-body').value.trim();
+  if (!title || !body) return false;
+  const report = {
+    id: Date.now(),
+    title,
+    body,
+    date: new Date().toLocaleDateString('he-IL'),
+    daycare: document.getElementById('report-daycare-select')?.value || '',
+    month: document.getElementById('report-month')?.value || '',
+  };
+  savedReports.unshift(report);
+  localStorage.setItem('nm_reports', JSON.stringify(savedReports));
+  return report;
+}
+
+function saveAndDownloadWord() {
+  const report = saveReport();
+  if (!report) { showToast('נא למלא כותרת ותוכן'); return; }
+  downloadWordFromReport(report);
+  showToast('הדוח נשמר והורד ✓');
+}
+
+function saveAndShareWhatsApp() {
+  const report = saveReport();
+  if (!report) { showToast('נא למלא כותרת ותוכן'); return; }
+  const sel = document.getElementById('report-daycare-select');
+  const name = sel ? sel.value : '';
+  const d = daycares.find(x => x.name === name) || {};
+  const phone = d.phone ? d.phone.replace(/[-\s]/g,'').replace(/^0/,'972') : '';
+  const msg = `*${report.title}*\n\n${report.body}`;
+  const url = phone
+    ? `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`
+    : `https://wa.me/?text=${encodeURIComponent(msg)}`;
+  showToast('הדוח נשמר ✓');
+  window.open(url, '_blank');
+}
+
+function renderReportsHistory() {
+  const container = document.getElementById('reports-history-list');
+  if (savedReports.length === 0) {
+    container.innerHTML = '<div style="color:var(--text-muted);font-size:14px;text-align:center;padding:30px">עדיין לא נשמרו דוחות.<br>הדוחות יופיעו כאן אחרי שתשמרי אותם.</div>';
+    return;
+  }
+  container.innerHTML = savedReports.map(r => `
+    <div class="visit-item" style="margin-bottom:10px;cursor:pointer" onclick="openSavedReport(${r.id})">
+      <div class="visit-date">📊 ${r.date} · ${r.daycare} · ${r.month}</div>
+      <div class="visit-summary" style="font-weight:600;margin-top:4px">${r.title}</div>
+      <div class="visit-summary" style="font-size:12px;color:var(--text-muted);margin-top:4px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">${r.body.substring(0,100)}...</div>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button onclick="event.stopPropagation();downloadWordById(${r.id})" style="flex:1;background:var(--primary-pale);color:var(--primary);border:none;border-radius:8px;padding:8px;font-size:12px;font-family:Heebo,sans-serif;cursor:pointer">📄 Word</button>
+        <button onclick="event.stopPropagation();shareById(${r.id})" style="flex:1;background:#E8F5E9;color:#2E7D32;border:none;border-radius:8px;padding:8px;font-size:12px;font-family:Heebo,sans-serif;cursor:pointer">📱 וואטסאפ</button>
+        <button onclick="event.stopPropagation();deleteReport(${r.id})" style="background:#FEE;color:#C00;border:none;border-radius:8px;padding:8px;font-size:12px;font-family:Heebo,sans-serif;cursor:pointer">🗑️</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function openSavedReport(id) {
+  const r = savedReports.find(x => x.id === id);
+  if (!r) return;
+  document.getElementById('report-title').value = r.title;
+  document.getElementById('report-body').value = r.body;
+  showStep(2);
+}
+
+function downloadWordById(id) {
+  const r = savedReports.find(x => x.id === id);
+  if (r) downloadWordFromReport(r);
+}
+
+function shareById(id) {
+  const r = savedReports.find(x => x.id === id);
+  if (!r) return;
+  const d = daycares.find(x => x.name === r.daycare) || {};
+  const phone = d.phone ? d.phone.replace(/[-\s]/g,'').replace(/^0/,'972') : '';
+  const msg = `*${r.title}*\n\n${r.body}`;
+  const url = phone ? `https://wa.me/${phone}?text=${encodeURIComponent(msg)}` : `https://wa.me/?text=${encodeURIComponent(msg)}`;
+  window.open(url, '_blank');
+}
+
+function deleteReport(id) {
+  savedReports = savedReports.filter(x => x.id !== id);
+  localStorage.setItem('nm_reports', JSON.stringify(savedReports));
+  renderReportsHistory();
+  showToast('הדוח נמחק');
+}
+
+function downloadWordFromReport(report) {
+  const rtf = `{\\rtf1\\ansi\\ansicpg1255\\deff0
+{\\fonttbl{\\f0\\froman\\fcharset177 Arial;}}
+{\\colortbl;\\red107\\green63\\blue160;}
+\\paperw11906\\paperh16838\\margl1800\\margr1800\\margt1440\\margb1440
+\\rtlpar\\qr
+{\\f0\\fs32\\b\\cf1 ${escRtf(report.title)}}
+\\par\\par
+{\\f0\\fs24 ${escRtf(report.body).replace(/\n/g,'\\par\n')}}
+\\par\\par
+{\\f0\\fs20\\i נכתב על ידי מאיה, מדריכה חינוכית · ${report.date}}
+}`;
+  const blob = new Blob([rtf], { type: 'application/rtf' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${report.title}.rtf`;
+  a.click();
+}
+
+function showReportEditor() {
+  const sel = document.getElementById('report-daycare-select');
+  const month = document.getElementById('report-month').value;
+  const name = sel ? sel.value : '';
+  document.getElementById('report-title').value = `דוח הדרכה — ${name} — ${month} 2026`;
+  document.getElementById('report-step1').style.display = 'none';
+  document.getElementById('report-step2').style.display = 'block';
+  window.scrollTo(0,0);
+}
+
+function downloadWord() {
+  const title = document.getElementById('report-title').value || 'דוח הדרכה';
+  const body = document.getElementById('report-body').value || '';
+  if (!body.trim()) { showToast('נא להכניס תוכן לדוח קודם'); return; }
+
+  // Build RTF with Hebrew support (opens in Word perfectly)
+  const rtf = `{\\rtf1\\ansi\\ansicpg1255\\deff0
+{\\fonttbl{\\f0\\froman\\fcharset177 Arial;}}
+{\\colortbl;\\red107\\green63\\blue160;}
+\\paperw11906\\paperh16838\\margl1800\\margr1800\\margt1440\\margb1440
+\\rtlpar\\qr
+{\\f0\\fs32\\b\\cf1 ${escRtf(title)}}
+\\par\\par
+{\\f0\\fs24 ${escRtf(body).replace(/\n/g,'\\par\n')}}
+\\par\\par
+{\\f0\\fs20\\i נכתב על ידי מאיה, מדריכה חינוכית}
+}`;
+
+  const blob = new Blob([rtf], { type: 'application/rtf' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${title}.rtf`;
+  a.click();
+  showToast('הקובץ הורד בהצלחה ✓');
+}
+
+function escRtf(str) {
+  return str
+    .replace(/\\/g, '\\\\')
+    .replace(/\{/g, '\\{')
+    .replace(/\}/g, '\\}')
+    .split('').map(c => {
+      const code = c.charCodeAt(0);
+      return code > 127 ? `\\'${code.toString(16).padStart(2,'0')}` : c;
+    }).join('');
+}
+
+function shareWhatsApp() {
+  const title = document.getElementById('report-title').value || 'דוח הדרכה';
+  const body = document.getElementById('report-body').value || '';
+  const sel = document.getElementById('report-daycare-select');
+  const name = sel ? sel.value : '';
+  const d = daycares.find(x => x.name === name) || {};
+  const phone = d.phone ? d.phone.replace(/[-\s]/g,'').replace(/^0/,'972') : '';
+  const msg = `*${title}*\n\n${body}`;
+  const url = phone
+    ? `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`
+    : `https://wa.me/?text=${encodeURIComponent(msg)}`;
+  window.open(url, '_blank');
+}
+
+function openClaudeReport() {
+  const sel = document.getElementById('report-daycare-select');
+  const month = document.getElementById('report-month').value;
+  const notes = document.getElementById('report-notes').value.trim();
+  const selectedName = sel.value;
+  const d = daycares.find(x => x.name === selectedName) || {};
+  const daycareVisits = visits.filter(v => v.daycare === selectedName);
+
+  // ביקורים
+  let visitsText = daycareVisits.length === 0
+    ? 'לא תועדו ביקורים רשמיים החודש.'
+    : daycareVisits.map((v, i) =>
+        `ביקור ${i+1} — ${v.date} (${v.type}):
+סיכום: ${v.summary||'—'}
+נקודות לשימור: ${v.strengths||'—'}
+נקודות לשיפור: ${v.improve||'—'}
+המלצות לצוות: ${v.reco||'—'}`
+      ).join('\n\n');
+
+  // ילדים ותהליכים קשורים למעון
+  const relatedTracking = trackingItems.filter(t => t.daycare === selectedName);
+  let trackingText = '';
+  if (relatedTracking.length > 0) {
+    trackingText = '\n\n👶 ילדים ותהליכים במעקב:\n' + relatedTracking.map(t =>
+      `• ${t.name} (${t.type === 'child' ? 'ילד/ה' : 'תהליך'}): ${t.desc}${t.update ? '\n  עדכון: ' + t.update : ''}${t.actions && t.actions.length ? '\n  פעולות: ' + t.actions.join(', ') : ''}`
+    ).join('\n');
+  }
+
+  const prompt = `אני מאיה יעקב, מדריכה חינוכית.
+אנא כתבי עבורי דוח הדרכה חודשי מקצועי עבור:
+
+🏫 ${selectedName}
+📍 ${d.address || '—'}
+🗓️ ${month} 2026
+
+━━━━━━━━━━━━━━━
+📋 תיעודי ביקורים:
+${visitsText}${trackingText}
+${notes ? `\n📝 הערות והקלטה:\n${notes}` : ''}
+━━━━━━━━━━━━━━━
+
+אנא כתבי דוח בעברית מקצועית, חמה ואנושית, במבנה הבא:
+
+**דוח הדרכה — ${selectedName} — ${month} 2026**
+מדריכה: מאיה יעקב
+
+1. **סיכום ביקורים** — מה נצפה, איך הרגשת במעון
+2. **תהליכים פדגוגיים** — מה קורה עם הילדים והצוות
+3. **נקודות חוזק** — מה עובד טוב
+4. **אתגרים והמלצות** — מה צריך שיפור ואיך
+5. **סיכום למפגש ההדרכה הבא** — על מה נתמקד, מה לעבוד עליו
+
+כתבי בגוף ראשון מנקודת מבטי כמדריכה. הדוח ישמש כמסמך מקצועי.`;
+
+  window.open(`https://claude.ai/new?q=${encodeURIComponent(prompt)}`, '_blank');
+}
+
+function updateReportPreview() {
+  const sel = document.getElementById('report-daycare-select');
+  if (!sel) return;
+  const daycareVisits = visits.filter(v => v.daycare === sel.value);
+  const container = document.getElementById('report-visits-preview');
+  if (!container) return;
+  if (daycareVisits.length === 0) {
+    container.innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:8px 0">לא תועדו ביקורים למעון זה עדיין.</div>';
+    return;
+  }
+  container.innerHTML = daycareVisits.map(v => `
+    <div class="visit-item" style="margin-bottom:8px">
+      <div class="visit-date">📅 ${v.date} · ${v.type}</div>
+      <div class="visit-summary" style="font-size:13px">${v.summary||'—'}</div>
+    </div>`).join('');
+}
+
+// ===== איתור מוקדם ובקרה =====
+function openAddDashboardItem() {
+  document.getElementById('dash-title').value = '';
+  document.getElementById('dash-text').value = '';
+  document.getElementById('dash-priority').value = '2';
+  document.getElementById('add-dashboard-modal').classList.add('open');
+}
+
+function saveDashboardItem() {
+  const title = document.getElementById('dash-title').value.trim();
+  if (!title) { showToast('נא להכניס כותרת'); return; }
+  const item = {
+    id: Date.now(),
+    priority: parseInt(document.getElementById('dash-priority').value),
+    title,
+    text: document.getElementById('dash-text').value.trim(),
+    manual: true,
+    done: false,
+  };
+  manualDashItems.unshift(item);
+  saveToStorage();
+  closeModal();
+  renderHomeAlerts();
+  showToast('נוסף ללוח הבקרה ✓');
+}
+
+function markDashItemDone(id) {
+  const item = manualDashItems.find(x => x.id === id);
+  if (item) { item.done = true; saveToStorage(); renderHomeAlerts(); showToast('סומן כטופל ✓'); }
+}
+
+function deleteDashItem(id) {
+  manualDashItems = manualDashItems.filter(x => x.id !== id);
+  saveToStorage();
+  renderHomeAlerts();
+}
+
+function renderHomeAlerts() {
+  const unvisited = getUnvisitedDaycares();
+  const pendingTracking = trackingItems.filter(t => !t.done);
+  const pendingManual = manualDashItems.filter(x => !x.done);
+
+  // עדכן מדדים בלבד
+  document.getElementById('unvisited-count').textContent = unvisited.length;
+  document.getElementById('tracking-count').textContent = pendingTracking.length;
+
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'בוקר טוב' : hour < 17 ? 'צהריים טובים' : 'ערב טוב';
+  document.getElementById('home-greeting-text').textContent = `${greeting}, מאיה 💜`;
+
+  const container = document.getElementById('dashboard-items');
+  let html = '';
+
+  // רק פריטים שהוספת ידנית
+  pendingManual.forEach(item => {
+    const colors = { 1:'#E63946', 2:'var(--warning)', 3:'var(--accent)' };
+    const bgColors = { 1:'#FCE8E8', 2:'var(--warning-light)', 3:'var(--accent-light)' };
+    const tags = { 1:'דחוף', 2:'לטיפול השבוע', 3:'לתשומת לב' };
+    const c = colors[item.priority] || 'var(--warning)';
+    const bg = bgColors[item.priority] || 'var(--warning-light)';
+    const tag = tags[item.priority] || '';
+    html += `
+      <div style="background:var(--card);border-radius:var(--radius-sm);padding:12px 14px;border:1px solid var(--border);border-right:3px solid ${c}">
+        <div style="flex:1">
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+            <span style="font-size:14px;font-weight:600">${item.title}</span>
+            <span style="font-size:10px;padding:2px 8px;border-radius:50px;background:${bg};color:${c}">${tag}</span>
+          </div>
+          ${item.text ? `<div style="font-size:12px;color:var(--text-muted);margin-top:3px;line-height:1.5">${item.text}</div>` : ''}
+        </div>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button onclick="markDashItemDone(${item.id})" style="flex:1;background:var(--primary-pale);color:var(--primary);border:none;border-radius:8px;padding:7px;font-size:12px;font-family:Heebo,sans-serif;cursor:pointer;font-weight:600">✓ טופל</button>
+          <button onclick="deleteDashItem(${item.id})" style="background:#FEE;color:#C00;border:none;border-radius:8px;padding:7px 12px;font-size:12px;font-family:Heebo,sans-serif;cursor:pointer">🗑️</button>
+        </div>
+      </div>`;
+  });
+
+  if (!html) {
+    html = `<div style="color:var(--text-muted);font-size:13px;padding:4px 0">לחצי ＋ להוסיף פריט לטיפול</div>`;
+  }
+
+  container.innerHTML = html;
+}
+
+function getUnvisitedDaycares() {
+  const now = new Date();
+  const thisMonth = now.getMonth();
+  const thisYear = now.getFullYear();
+  return daycares.filter(d => {
+    const dVisits = visits.filter(v => v.daycare === d.name);
+    if (dVisits.length === 0) return true;
+    const last = new Date(dVisits[dVisits.length-1].date);
+    return !(last.getMonth() === thisMonth && last.getFullYear() === thisYear);
+  });
+}
+
+function renderTrackingScreen() {
+  const tContainer = document.getElementById('tracking-list');
+  const active = trackingItems.filter(t => !t.done);
+  const done = trackingItems.filter(t => t.done);
+
+  if (trackingItems.length === 0) {
+    tContainer.innerHTML = `<div style="color:var(--text-muted);font-size:14px;text-align:center;padding:30px 0">
+      <div style="font-size:32px;margin-bottom:10px">👶</div>
+      עדיין לא נוספו ילדים לאיתור.<br>לחצי ＋ להוסיף.
+    </div>`;
+    return;
+  }
+
+  // קבץ לפי מעון
+  const byDaycare = {};
+  active.forEach(t => {
+    if (!byDaycare[t.daycare]) byDaycare[t.daycare] = [];
+    byDaycare[t.daycare].push(t);
+  });
+
+  let html = '';
+  Object.keys(byDaycare).forEach(daycareName => {
+    html += `<div style="font-size:13px;font-weight:700;color:var(--primary);margin:8px 0 4px">🏫 ${daycareName}</div>`;
+    byDaycare[daycareName].forEach(t => {
+      html += `
+        <div class="visit-item" style="border-color:var(--accent);margin-bottom:8px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <div>
+              <div style="font-size:15px;font-weight:600">👶 ${t.name}</div>
+              ${t.age ? `<div style="font-size:12px;color:var(--text-muted);margin-top:2px">${t.age}</div>` : ''}
+            </div>
+            <button onclick="toggleTrackDone(${t.id})" style="background:var(--primary-pale);color:var(--primary);border:none;border-radius:50px;padding:4px 12px;font-size:12px;font-family:Heebo,sans-serif;cursor:pointer;flex-shrink:0;white-space:nowrap">✓ טופל</button>
+          </div>
+          <div style="font-size:13px;color:var(--text-muted);margin-top:8px;line-height:1.6">${t.desc}</div>
+          ${t.actions&&t.actions.length ? `<div class="visit-tags" style="margin-top:8px">${t.actions.map(a=>`<span class="visit-tag">${a}</span>`).join('')}</div>` : ''}
+          ${t.update ? `<div style="font-size:12px;color:var(--primary);margin-top:6px;font-style:italic">📝 ${t.update}</div>` : ''}
+          ${t.nextDate ? `<div style="font-size:12px;color:var(--warning);margin-top:4px">📅 מעקב הבא: ${t.nextDate}</div>` : ''}
+          <div style="display:flex;gap:8px;margin-top:10px">
+            <button onclick="openEditTracking(${t.id})" style="flex:1;background:var(--primary-pale);color:var(--primary);border:none;border-radius:8px;padding:7px;font-size:12px;font-family:Heebo,sans-serif;cursor:pointer">✏️ עדכני</button>
+            <button onclick="deleteTracking(${t.id})" style="background:#FEE;color:#C00;border:none;border-radius:8px;padding:7px 12px;font-size:12px;font-family:Heebo,sans-serif;cursor:pointer">🗑️</button>
+          </div>
+        </div>`;
+    });
+  });
+
+  // טופלו
+  if (done.length > 0) {
+    html += `<div style="font-size:13px;font-weight:600;color:var(--text-muted);margin:16px 0 6px">✓ טופלו (${done.length})</div>`;
+    done.forEach(t => {
+      html += `<div style="background:var(--card);border-radius:8px;padding:10px 14px;border:1px solid var(--border);opacity:0.5;display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <div>
+          <div style="font-size:13px;font-weight:600">${t.name} · ${t.daycare}</div>
+        </div>
+        <button onclick="deleteTracking(${t.id})" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:14px">🗑️</button>
+      </div>`;
+    });
+  }
+
+  tContainer.innerHTML = html;
+}
+
+function openAddTracking() {
+  pendingTrackActions = [];
+  document.getElementById('track-actions-list').innerHTML = '';
+  ['track-name','track-desc','track-update'].forEach(id => document.getElementById(id).value='');
+  const ageEl = document.getElementById('track-age');
+  const nextEl = document.getElementById('track-next-date');
+  if (ageEl) ageEl.value = '';
+  if (nextEl) nextEl.value = '';
+  const sel = document.getElementById('track-daycare');
+  sel.innerHTML = daycares.map(d=>`<option>${d.name}</option>`).join('');
+  document.getElementById('add-tracking-modal').dataset.editId = '';
+  document.getElementById('add-tracking-modal').classList.add('open');
+}
+
+function openEditTracking(id) {
+  const t = trackingItems.find(x => x.id === id);
+  if (!t) return;
+  pendingTrackActions = [...(t.actions||[])];
+  document.getElementById('track-name').value = t.name;
+  document.getElementById('track-desc').value = t.desc || '';
+  document.getElementById('track-update').value = t.update || '';
+  const ageEl = document.getElementById('track-age');
+  const nextEl = document.getElementById('track-next-date');
+  if (ageEl) ageEl.value = t.age || '';
+  if (nextEl) nextEl.value = t.nextDate || '';
+  const sel = document.getElementById('track-daycare');
+  sel.innerHTML = daycares.map(d=>`<option>${d.name}</option>`).join('');
+  sel.value = t.daycare;
+  document.getElementById('track-actions-list').innerHTML = pendingTrackActions.map(a=>
+    `<span class="visit-tag" style="display:inline-block;margin:2px 4px 4px 0">${a}</span>`).join('');
+  document.getElementById('add-tracking-modal').dataset.editId = id;
+  document.getElementById('add-tracking-modal').classList.add('open');
+}
+
+function addTrackAction(action) {
+  if (!pendingTrackActions.includes(action)) {
+    pendingTrackActions.push(action);
+    document.getElementById('track-actions-list').innerHTML = pendingTrackActions.map(a=>
+      `<span class="visit-tag" style="display:inline-block;margin:2px 4px 4px 0">${a}</span>`).join('');
+  }
+}
+
+function saveTracking() {
+  const name = document.getElementById('track-name').value.trim();
+  if (!name) { showToast('נא להכניס כינוי'); return; }
+  const modal = document.getElementById('add-tracking-modal');
+  const editId = modal.dataset.editId;
+
+  const item = {
+    id: editId ? parseInt(editId) : Date.now(),
+    type: 'child',
+    daycare: document.getElementById('track-daycare').value,
+    name,
+    age: document.getElementById('track-age')?.value || '',
+    desc: document.getElementById('track-desc').value,
+    actions: [...pendingTrackActions],
+    update: document.getElementById('track-update').value,
+    nextDate: document.getElementById('track-next-date')?.value || '',
+    done: false,
+    createdAt: new Date().toLocaleDateString('he-IL'),
+  };
+
+  if (editId) {
+    const idx = trackingItems.findIndex(x => x.id === parseInt(editId));
+    if (idx > -1) { item.done = trackingItems[idx].done; trackingItems[idx] = item; }
+  } else {
+    trackingItems.unshift(item);
+  }
+
+  saveToStorage();
+  closeModal();
+  renderTrackingScreen();
+  renderHomeAlerts();
+  showToast(editId ? 'עודכן ✓' : 'נוסף לאיתור מוקדם ✓');
+}
+
+function toggleTrackDone(id) {
+  const item = trackingItems.find(t => t.id===id);
+  if (item) { item.done = !item.done; saveToStorage(); renderTrackingScreen(); renderHomeAlerts(); }
+}
+
+function deleteTracking(id) {
+  trackingItems = trackingItems.filter(t => t.id!==id);
+  saveToStorage();
+  renderTrackingScreen();
+  renderHomeAlerts();
+  showToast('נמחק');
+}
+
+// ===== גיבוי ושחזור =====
+function exportData() {
+  const data = {
+    version: 2,
+    exportDate: new Date().toLocaleDateString('he-IL'),
+    visits,
+    extraDaycares,
+    trackingItems,
+    manualDashItems,
+    staffData,
+    plannedVisits,
+    savedReports,
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `גיבוי-ניהול-מעונות-${new Date().toLocaleDateString('he-IL').replace(/\//g,'-')}.json`;
+  a.click();
+  showToast('הגיבוי הורד בהצלחה ✓');
+}
+
+function importData(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data.version) { showToast('קובץ לא תקין'); return; }
+      if (data.visits) { visits.length = 0; data.visits.forEach(v => visits.push(v)); }
+      if (data.extraDaycares) { extraDaycares.length = 0; data.extraDaycares.forEach(d => { extraDaycares.push(d); daycares.push(d); }); }
+      if (data.trackingItems) { trackingItems.length = 0; data.trackingItems.forEach(t => trackingItems.push(t)); }
+      if (data.manualDashItems) { manualDashItems.length = 0; data.manualDashItems.forEach(i => manualDashItems.push(i)); }
+      if (data.staffData) Object.assign(staffData, data.staffData);
+      if (data.plannedVisits) { plannedVisits.length = 0; data.plannedVisits.forEach(p => plannedVisits.push(p)); }
+      if (data.savedReports) { savedReports.length = 0; data.savedReports.forEach(r => savedReports.push(r)); }
+      saveToStorage();
+      renderDaycares(daycares);
+      renderHomeAlerts();
+      renderPlannedVisits();
+      document.getElementById('visit-count').textContent = visits.length;
+      showToast('הנתונים שוחזרו בהצלחה ✓');
+    } catch(err) {
+      showToast('שגיאה בטעינת הקובץ');
+    }
+  };
+  reader.readAsText(file);
+}
+
+function openImport() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json';
+  input.onchange = importData;
+  input.click();
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+document.querySelectorAll('.modal-overlay').forEach(m => {
+  m.addEventListener('click', e => { if (e.target === m) closeModal(); });
+});
+
+const days = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+const months = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+const now = new Date();
+document.getElementById('today-date').textContent = `יום ${days[now.getDay()]}, ${now.getDate()} ב${months[now.getMonth()]} ${now.getFullYear()}`;
+
+renderDaycares(daycares);
+document.getElementById('visit-count').textContent = visits.length;
+renderHomeAlerts();
+renderPlannedVisits();
+</script>
+</body>
+</html>
