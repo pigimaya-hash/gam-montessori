@@ -3350,14 +3350,9 @@ function signInWithGoogle() {
 }
 
 function checkLoginStatus() {
-  firebase.auth().onAuthStateChanged(user => {
-    const loginScreen = document.getElementById('login-screen');
-    if (user && ALLOWED_EMAILS.includes(user.email.toLowerCase())) {
-      loginScreen.style.display = 'none';
-    } else {
-      loginScreen.style.display = 'flex';
-    }
-  });
+  // כניסה חופשית - ללא סיסמה
+  const loginScreen = document.getElementById('login-screen');
+  if (loginScreen) loginScreen.style.display = 'none';
 }
 
 const USER_PASSWORDS = {
