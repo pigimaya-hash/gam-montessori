@@ -795,14 +795,6 @@ if (!localStorage.getItem('nm_staff_cleaned_v2')) {
 
 cleanStaffDuplicates();
 
-function saveToStorage() {
-  localStorage.setItem('nm_visits', JSON.stringify(visits));
-  localStorage.setItem('nm_extra_daycares', JSON.stringify(extraDaycares));
-  localStorage.setItem('nm_tracking', JSON.stringify(trackingItems));
-  localStorage.setItem('nm_dash_items', JSON.stringify(manualDashItems));
-  localStorage.setItem('nm_staff', JSON.stringify(staffData));
-}
-
 function openAddStaff() {
   ['staff-name-input','staff-phone-input','staff-notes-input'].forEach(id => document.getElementById(id).value = '');
   const modal = document.getElementById('add-staff-modal');
