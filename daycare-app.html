@@ -208,20 +208,78 @@ async function supabaseSave(payload) {
     </div>
   </div>
 
-  <!-- לוח בקרה — דורש טיפול -->
-  <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 20px 6px">
+  <!-- כפתור מצב שטח -->
+  <div style="padding:0 20px 12px">
+    <button onclick="openFieldMode()" style="width:100%;background:var(--accent);color:white;border:none;border-radius:var(--radius);padding:16px;font-size:16px;font-family:Heebo,sans-serif;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;box-shadow:0 4px 16px rgba(244,132,95,0.35)">
+      <span style="font-size:22px">📍</span> אני בגן עכשיו
+    </button>
+  </div>
+
+  <!-- סיכום בוקר -->
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:4px 20px 6px">
+    <div class="section-title" style="padding:0">☀️ הכנה לפגישות היום</div>
+  </div>
+  <div id="morning-briefing" style="padding:0 20px;display:flex;flex-direction:column;gap:8px"></div>
+
+  <!-- לוח בקרה -->
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 20px 6px">
     <div class="section-title" style="padding:0">⚡ דורש טיפול עכשיו</div>
     <button onclick="openAddDashboardItem()" style="background:var(--primary);color:white;border:none;border-radius:50px;padding:5px 14px;font-size:12px;font-family:Heebo,sans-serif;cursor:pointer;font-weight:600">＋ הוסיפי</button>
   </div>
   <div id="dashboard-items" style="padding:0 20px;display:flex;flex-direction:column;gap:8px"></div>
 
   <!-- ביקורים מתוכננים -->
-  <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 20px 6px">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 20px 6px">
     <div class="section-title" style="padding:0">📅 ביקורים מתוכננים</div>
     <button onclick="openAddPlanned()" style="background:var(--primary);color:white;border:none;border-radius:50px;padding:5px 14px;font-size:12px;font-family:Heebo,sans-serif;cursor:pointer;font-weight:600">＋ הוסיפי</button>
   </div>
   <div id="planned-visits-list" style="padding:0 20px;display:flex;flex-direction:column;gap:8px;margin-bottom:4px"></div>
   <div style="height:8px"></div>
+</div>
+
+<!-- MODAL: מצב שטח -->
+<div class="modal-overlay" id="field-mode-modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">📍 אני בגן עכשיו</div>
+
+    <label class="form-label">באיזה גן?</label>
+    <select class="form-select" id="field-daycare" onchange="loadLastVisitSummary()"></select>
+
+    <!-- סיכום ביקור אחרון -->
+    <div id="last-visit-reminder" style="background:var(--primary-pale);border-radius:var(--radius-sm);padding:12px;margin-bottom:14px;display:none">
+      <div style="font-size:12px;font-weight:600;color:var(--primary);margin-bottom:6px">📋 ביקור אחרון:</div>
+      <div id="last-visit-text" style="font-size:13px;color:var(--text);line-height:1.6"></div>
+    </div>
+
+    <div style="font-size:13px;font-weight:600;color:var(--text-muted);margin-bottom:10px">מה אני רואה עכשיו?</div>
+
+    <label class="form-label">אווירה כללית</label>
+    <select class="form-select" id="field-atmosphere">
+      <option value="">בחרי...</option>
+      <option>רגועה ומאורגנת</option>
+      <option>פעילה ורועשת</option>
+      <option>מתוחה</option>
+      <option>חמה ואוהבת</option>
+    </select>
+
+    <label class="form-label">מה עובד טוב היום?</label>
+    <textarea class="form-textarea" id="field-good" placeholder="מה רואה שעובד..." style="min-height:70px"></textarea>
+
+    <label class="form-label">מה דורש התייחסות?</label>
+    <textarea class="form-textarea" id="field-concern" placeholder="מה צריך לטפל..." style="min-height:70px"></textarea>
+
+    <label class="form-label">שאלות/נושאים לשיחה עם הצוות</label>
+    <textarea class="form-textarea" id="field-topics" placeholder="על מה תדברי..." style="min-height:60px"></textarea>
+
+    <button class="action-btn" onclick="saveFieldObservation()" style="display:flex;align-items:center;justify-content:center;gap:8px">
+      ✓ שמרי ושלחי ל-Claude לסיכום
+    </button>
+    <button class="action-btn secondary" style="margin-top:8px" onclick="saveFieldObservationOnly()">
+      שמרי בלבד (ללא Claude)
+    </button>
+    <button class="action-btn secondary" style="margin-top:8px" onclick="closeModal()">ביטול</button>
+  </div>
 </div>
 
 <!-- TRACKING SCREEN -->
@@ -651,7 +709,169 @@ let pendingTrackActions = [];
 
 let manualDashItems = JSON.parse(localStorage.getItem('nm_dash_items') || '[]');
 
-// ===== ביקורים מתוכננים =====
+// ===== סיכום בוקר =====
+function renderMorningBriefing() {
+  const container = document.getElementById('morning-briefing');
+  if (!container) return;
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  const tomorrow = new Date(today.getTime() + 86400000);
+
+  const todayVisits = plannedVisits.filter(v => !v.done && new Date(v.date).toDateString() === today.toDateString());
+  const tomorrowVisits = plannedVisits.filter(v => !v.done && new Date(v.date).toDateString() === tomorrow.toDateString());
+
+  let html = '';
+
+  if (todayVisits.length === 0 && tomorrowVisits.length === 0) {
+    html = `<div style="color:var(--text-muted);font-size:13px;padding:4px 0">אין ביקורים מתוכננים היום ומחר — לחצי ＋ בביקורים מתוכננים להוסיף</div>`;
+    container.innerHTML = html;
+    return;
+  }
+
+  todayVisits.forEach(v => {
+    const lastVisit = visits.filter(lv => lv.daycare === v.daycare).slice(-1)[0];
+    html += `
+      <div style="background:var(--card);border-radius:var(--radius);padding:14px 16px;border:1px solid var(--border);border-right:3px solid #E63946;cursor:pointer" onclick="openFieldModeFor('${v.daycare}')">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <span style="font-size:11px;background:#FCE8E8;color:#E63946;padding:2px 10px;border-radius:50px;font-weight:600">📍 היום${v.time ? ' · ' + v.time : ''}</span>
+          <span style="font-size:14px;font-weight:700">${v.daycare}</span>
+        </div>
+        ${lastVisit ? `
+          <div style="font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:4px">ביקור אחרון (${lastVisit.date}):</div>
+          ${lastVisit.summary ? `<div style="font-size:13px;color:var(--text);line-height:1.5;margin-bottom:4px">${lastVisit.summary.substring(0,100)}${lastVisit.summary.length>100?'...':''}</div>` : ''}
+          ${lastVisit.improve ? `<div style="font-size:12px;color:var(--accent)">⚑ לשיפור: ${lastVisit.improve.substring(0,60)}</div>` : ''}
+        ` : '<div style="font-size:12px;color:var(--text-muted)">ביקור ראשון — אין היסטוריה</div>'}
+        <div style="margin-top:10px;background:var(--accent);color:white;border:none;border-radius:8px;padding:8px;font-size:12px;font-family:Heebo,sans-serif;text-align:center;font-weight:600">
+          📍 לחצי להיכנס למצב שטח
+        </div>
+      </div>`;
+  });
+
+  tomorrowVisits.forEach(v => {
+    const lastVisit = visits.filter(lv => lv.daycare === v.daycare).slice(-1)[0];
+    html += `
+      <div style="background:var(--card);border-radius:var(--radius);padding:14px 16px;border:1px solid var(--border);border-right:3px solid var(--warning)">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <span style="font-size:11px;background:var(--warning-light);color:var(--warning);padding:2px 10px;border-radius:50px;font-weight:600">⏰ מחר${v.time ? ' · ' + v.time : ''}</span>
+          <span style="font-size:14px;font-weight:700">${v.daycare}</span>
+        </div>
+        ${lastVisit ? `
+          <div style="font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:4px">תזכורת מביקור אחרון (${lastVisit.date}):</div>
+          ${lastVisit.strengths ? `<div style="font-size:12px;color:var(--primary)">✓ חוזק: ${lastVisit.strengths.substring(0,60)}</div>` : ''}
+          ${lastVisit.improve ? `<div style="font-size:12px;color:var(--accent)">⚑ לשיפור: ${lastVisit.improve.substring(0,60)}</div>` : ''}
+        ` : '<div style="font-size:12px;color:var(--text-muted)">ביקור ראשון — אין היסטוריה</div>'}
+      </div>`;
+  });
+
+  container.innerHTML = html;
+}
+
+// ===== מצב שטח =====
+function openFieldMode() {
+  const sel = document.getElementById('field-daycare');
+  sel.innerHTML = daycares.map(d => `<option>${d.name}</option>`).join('');
+  document.getElementById('field-atmosphere').value = '';
+  document.getElementById('field-good').value = '';
+  document.getElementById('field-concern').value = '';
+  document.getElementById('field-topics').value = '';
+  document.getElementById('last-visit-reminder').style.display = 'none';
+  loadLastVisitSummary();
+  document.getElementById('field-mode-modal').classList.add('open');
+}
+
+function openFieldModeFor(daycareName) {
+  openFieldMode();
+  setTimeout(() => {
+    document.getElementById('field-daycare').value = daycareName;
+    loadLastVisitSummary();
+  }, 50);
+}
+
+function loadLastVisitSummary() {
+  const daycareName = document.getElementById('field-daycare').value;
+  const lastVisit = visits.filter(v => v.daycare === daycareName).slice(-1)[0];
+  const reminder = document.getElementById('last-visit-reminder');
+  const text = document.getElementById('last-visit-text');
+  if (lastVisit) {
+    let content = '';
+    if (lastVisit.summary) content += `📝 ${lastVisit.summary}\n`;
+    if (lastVisit.strengths) content += `✓ שימור: ${lastVisit.strengths}\n`;
+    if (lastVisit.improve) content += `⚑ לשיפור: ${lastVisit.improve}\n`;
+    if (lastVisit.reco) content += `💡 המלצות: ${lastVisit.reco}`;
+    text.textContent = content || 'אין פרטים';
+    reminder.style.display = 'block';
+  } else {
+    reminder.style.display = 'none';
+  }
+}
+
+function saveFieldObservation() {
+  const daycareName = document.getElementById('field-daycare').value;
+  const atmosphere = document.getElementById('field-atmosphere').value;
+  const good = document.getElementById('field-good').value;
+  const concern = document.getElementById('field-concern').value;
+  const topics = document.getElementById('field-topics').value;
+
+  // שמור כביקור
+  const v = {
+    daycare: daycareName,
+    date: new Date().toISOString().split('T')[0],
+    type: 'תצפית שטח',
+    summary: `אווירה: ${atmosphere}. ${good}`,
+    strengths: good,
+    improve: concern,
+    reco: topics,
+  };
+  visits.push(v);
+  document.getElementById('visit-count').textContent = visits.length;
+  saveToStorage();
+  closeModal();
+  showToast('נשמר ✓');
+
+  // שלח ל-Claude לסיכום
+  const lastVisit = visits.filter(lv => lv.daycare === daycareName).slice(-2)[0];
+  const prompt = `אני מאיה יעקב, מדריכה חינוכית. רק סיימתי ביקור ב${daycareName}.
+
+מה ראיתי היום:
+• אווירה: ${atmosphere}
+• מה עבד טוב: ${good}
+• מה דורש התייחסות: ${concern}
+• נושאים לשיחה עם הצוות: ${topics}
+
+${lastVisit ? `בביקור הקודם (${lastVisit.date}) ציינתי:
+• לשיפור: ${lastVisit.improve || '—'}
+• המלצות: ${lastVisit.reco || '—'}` : ''}
+
+אנא כתבי לי:
+1. סיכום קצר של הביקור (3-4 משפטים)
+2. האם יש התקדמות מהביקור הקודם?
+3. 3 נקודות עיקריות לביקור הבא`;
+
+  window.open(`https://claude.ai/new?q=${encodeURIComponent(prompt)}`, '_blank');
+}
+
+function saveFieldObservationOnly() {
+  const daycareName = document.getElementById('field-daycare').value;
+  const atmosphere = document.getElementById('field-atmosphere').value;
+  const good = document.getElementById('field-good').value;
+  const concern = document.getElementById('field-concern').value;
+  const topics = document.getElementById('field-topics').value;
+
+  const v = {
+    daycare: daycareName,
+    date: new Date().toISOString().split('T')[0],
+    type: 'תצפית שטח',
+    summary: `אווירה: ${atmosphere}. ${good}`,
+    strengths: good,
+    improve: concern,
+    reco: topics,
+  };
+  visits.push(v);
+  document.getElementById('visit-count').textContent = visits.length;
+  saveToStorage();
+  closeModal();
+  showToast('הביקור נשמר ✓');
+}
 let plannedVisits = JSON.parse(localStorage.getItem('nm_planned') || '[]');
 
 function saveToStorage() {
@@ -927,7 +1147,7 @@ function goTo(screen) {
   if (screen === 'daycares') renderDaycares(daycares);
   if (screen === 'visits') renderAllVisits();
   if (screen === 'tracking') renderTrackingScreen();
-  if (screen === 'home') { renderHomeAlerts(); renderPlannedVisits(); }
+  if (screen === 'home') { renderHomeAlerts(); renderPlannedVisits(); renderMorningBriefing(); }
   if (screen === 'reports') {
     const sel = document.getElementById('report-daycare-select');
     sel.innerHTML = daycares.map(d => `<option>${d.name}</option>`).join('');
@@ -1889,6 +2109,7 @@ renderDaycares(daycares);
 document.getElementById('visit-count').textContent = visits.length;
 renderHomeAlerts();
 renderPlannedVisits();
+renderMorningBriefing();
 loadFromCloud();
 </script>
 </body>
