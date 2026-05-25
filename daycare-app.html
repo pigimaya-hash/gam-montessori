@@ -1847,39 +1847,33 @@ async function loadFromCloud() {
 
   const data = await supabaseGet();
   if (data) {
-    if (data.visits && data.visits.length > 0) {
-      visits.length = 0;
-      data.visits.forEach(v => visits.push(v));
-      localStorage.setItem('nm_visits', JSON.stringify(visits));
-    }
-    if (data.tracking_items && data.tracking_items.length > 0) {
-      trackingItems.length = 0;
-      data.tracking_items.forEach(t => trackingItems.push(t));
-      localStorage.setItem('nm_tracking', JSON.stringify(trackingItems));
-    }
-    if (data.manual_dash_items && data.manual_dash_items.length > 0) {
-      manualDashItems.length = 0;
-      data.manual_dash_items.forEach(i => manualDashItems.push(i));
-      localStorage.setItem('nm_dash_items', JSON.stringify(manualDashItems));
-    }
-    if (data.staff_data && Object.keys(data.staff_data).length > 0) {
-      Object.assign(staffData, data.staff_data);
-      localStorage.setItem('nm_staff', JSON.stringify(staffData));
-    }
-    if (data.planned_visits && data.planned_visits.length > 0) {
-      plannedVisits.length = 0;
-      data.planned_visits.forEach(p => plannedVisits.push(p));
-      localStorage.setItem('nm_planned', JSON.stringify(plannedVisits));
-    }
-    if (data.saved_reports && data.saved_reports.length > 0) {
-      savedReports.length = 0;
-      data.saved_reports.forEach(r => savedReports.push(r));
-      localStorage.setItem('nm_reports', JSON.stringify(savedReports));
-    }
-    if (data.extra_daycares && data.extra_daycares.length > 0) {
-      extraDaycares.length = 0;
-      data.extra_daycares.forEach(d => { extraDaycares.push(d); daycares.push(d); });
-    }
+    // תמיד החלף עם נתוני הענן — הענן הוא המקור היחיד
+    visits.length = 0;
+    (data.visits || []).forEach(v => visits.push(v));
+
+    trackingItems.length = 0;
+    (data.tracking_items || []).forEach(t => trackingItems.push(t));
+
+    manualDashItems.length = 0;
+    (data.manual_dash_items || []).forEach(i => manualDashItems.push(i));
+
+    plannedVisits.length = 0;
+    (data.planned_visits || []).forEach(p => plannedVisits.push(p));
+
+    savedReports.length = 0;
+    (data.saved_reports || []).forEach(r => savedReports.push(r));
+
+    // staffData — החלף לגמרי
+    Object.keys(staffData).forEach(k => delete staffData[k]);
+    Object.assign(staffData, data.staff_data || {});
+
+    // שמור מקומית
+    localStorage.setItem('nm_visits', JSON.stringify(visits));
+    localStorage.setItem('nm_tracking', JSON.stringify(trackingItems));
+    localStorage.setItem('nm_dash_items', JSON.stringify(manualDashItems));
+    localStorage.setItem('nm_planned', JSON.stringify(plannedVisits));
+    localStorage.setItem('nm_reports', JSON.stringify(savedReports));
+    localStorage.setItem('nm_staff', JSON.stringify(staffData));
   }
 
   syncIndicator.innerHTML = '✓ מסונכרן';
