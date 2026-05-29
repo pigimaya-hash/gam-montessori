@@ -396,7 +396,8 @@ async function supabaseSave(payload) {
 
   <!-- כרטיסיית דוח בפרופיל -->
   <div class="tab-content" id="tab-report">
-    <div style="font-size:13px;color:var(--text-muted);margin-bottom:12px">כל המידע מהמעון הזה יישלח ל-Claude ליצירת הדוח</div>
+    <div style="font-size:13px;color:var(--text-muted);margin-bottom:12px">צרי דוח הדרכה חודשי מקצועי ← ערכי ← שלחי</div>
+    
     <label class="form-label">חודש</label>
     <select class="form-select" id="profile-report-month">
       <option>ינואר</option><option>פברואר</option><option>מרץ</option>
@@ -404,20 +405,39 @@ async function supabaseSave(payload) {
       <option>יולי</option><option>אוגוסט</option><option>ספטמבר</option>
       <option>אוקטובר</option><option>נובמבר</option><option>דצמבר</option>
     </select>
+
     <label class="form-label">🎙️ הערות / תמלול הקלטה</label>
-    <textarea class="form-textarea" id="profile-report-notes" placeholder="הדביקי כאן תמלול הקלטה או הערות נוספות..." style="min-height:100px"></textarea>
-    <div style="background:var(--primary-pale);border-radius:var(--radius-sm);padding:12px;margin-bottom:12px;font-size:13px;color:var(--primary);line-height:1.7">
-      💡 הדוח יכלול אוטומטית:<br>
-      ✓ כל הביקורים שתיעדת<br>
-      ✓ ילדים באיתור מוקדם<br>
-      ✓ סיכום למפגש הבא
+    <textarea class="form-textarea" id="profile-report-notes" placeholder="הדביקי כאן תמלול הקלטה או הערות נוספות..." style="min-height:80px"></textarea>
+
+    <!-- כפתור יצירה -->
+    <div id="report-generate-section">
+      <button class="action-btn" onclick="generateGeminiReport()" id="gemini-generate-btn" style="display:flex;align-items:center;justify-content:center;gap:8px">
+        <span>✨</span> צרי דוח אוטומטי
+      </button>
+      <div id="gemini-loading" style="display:none;text-align:center;padding:20px;color:var(--primary)">
+        <div style="font-size:24px;margin-bottom:8px">⏳</div>
+        <div style="font-size:14px">יוצרת דוח... כמה שניות</div>
+      </div>
     </div>
-    <button class="action-btn" onclick="openClaudeReportFromProfile()" style="display:flex;align-items:center;justify-content:center;gap:8px">
-      <span>✨</span> צרי דוח עם Claude
-    </button>
-    <button class="action-btn secondary" onclick="showReportEditorFromProfile()" style="margin-top:8px">
-      ← עברי לעריכת דוח קיים
-    </button>
+
+    <!-- עריכת הדוח -->
+    <div id="report-edit-section" style="display:none;margin-top:12px">
+      <label class="form-label">✏️ עריכת הדוח</label>
+      <textarea id="profile-report-body" style="width:100%;background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;font-size:14px;font-family:Heebo,sans-serif;color:var(--text);outline:none;min-height:350px;resize:vertical;line-height:1.8;direction:rtl"></textarea>
+      
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px">
+        <button class="action-btn" onclick="saveAndDownloadProfileReport()" style="display:flex;align-items:center;justify-content:center;gap:8px">
+          <span>📄</span> שמרי והורד כ-Word
+        </button>
+        <button class="action-btn secondary" onclick="saveAndShareProfileWhatsApp()" style="display:flex;align-items:center;justify-content:center;gap:8px">
+          <span>📱</span> שמרי ושלחי בוואטסאפ
+        </button>
+        <button class="action-btn secondary" onclick="document.getElementById('report-edit-section').style.display='none';document.getElementById('report-generate-section').style.display='block'">
+          ← צרי דוח חדש
+        </button>
+      </div>
+    </div>
+  </div>
   </div>
 
   <div class="tab-content" id="tab-messages">
@@ -1252,7 +1272,112 @@ function switchTab(e, id) {
   if (id === 'tab-early' && currentDaycare) renderProfileEarlyList(currentDaycare.name);
 }
 
-function openAddTrackingForProfile() {
+const GEMINI_KEY = 'AQ.Ab8RN6LjUIh7_gptAlTXpZlaDzd7hcvtrCE1FgrXxkelS_K4JQ';
+
+async function generateGeminiReport() {
+  if (!currentDaycare) return;
+  const d = currentDaycare;
+  const month = document.getElementById('profile-report-month').value;
+  const notes = document.getElementById('profile-report-notes').value.trim();
+  const daycareVisits = visits.filter(v => v.daycare === d.name);
+  const relatedTracking = trackingItems.filter(t => t.daycare === d.name);
+
+  let visitsText = daycareVisits.length === 0
+    ? 'לא תועדו ביקורים רשמיים החודש.'
+    : daycareVisits.map((v, i) =>
+        `ביקור ${i+1} — ${v.date} (${v.type}):\nסיכום: ${v.summary||'—'}\nנקודות לשימור: ${v.strengths||'—'}\nנקודות לשיפור: ${v.improve||'—'}\nהמלצות: ${v.reco||'—'}`
+      ).join('\n\n');
+
+  let trackingText = relatedTracking.length > 0
+    ? '\n\nילדים באיתור מוקדם:\n' + relatedTracking.map(t =>
+        `• ${t.name}${t.age?' ('+t.age+')':''}: ${t.desc}${t.update?'\n  עדכון: '+t.update:''}${t.actions&&t.actions.length?'\n  פעולות: '+t.actions.join(', '):''}`
+      ).join('\n')
+    : '';
+
+  const prompt = `אני מאיה יעקב, מדריכה חינוכית.
+כתבי דוח הדרכה חודשי מקצועי בעברית חמה ואנושית עבור:
+
+🏫 ${d.name}
+📍 ${d.address || '—'}
+🗓️ ${month} 2026
+
+📋 תיעודי ביקורים:
+${visitsText}${trackingText}
+${notes ? `\n📝 הערות:\n${notes}` : ''}
+
+הדוח במבנה הבא:
+**דוח הדרכה — ${d.name} — ${month} 2026**
+מדריכה: מאיה יעקב
+
+1. סיכום ביקורים
+2. תהליכים פדגוגיים
+3. נקודות חוזק
+4. אתגרים והמלצות
+5. סיכום למפגש ההדרכה הבא
+
+כתבי בגוף ראשון.`;
+
+  // הצג loading
+  document.getElementById('gemini-generate-btn').style.display = 'none';
+  document.getElementById('gemini-loading').style.display = 'block';
+
+  try {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }]
+        })
+      }
+    );
+    const data = await res.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+    document.getElementById('gemini-loading').style.display = 'none';
+    document.getElementById('gemini-generate-btn').style.display = 'flex';
+
+    if (text) {
+      document.getElementById('profile-report-body').value = text;
+      document.getElementById('report-edit-section').style.display = 'block';
+      document.getElementById('report-generate-section').style.display = 'none';
+      showToast('הדוח נוצר! ערכי ושלחי 💜');
+    } else {
+      showToast('שגיאה ביצירת הדוח — נסי שוב');
+    }
+  } catch(e) {
+    document.getElementById('gemini-loading').style.display = 'none';
+    document.getElementById('gemini-generate-btn').style.display = 'flex';
+    showToast('שגיאת חיבור — בדקי אינטרנט');
+  }
+}
+
+function saveAndDownloadProfileReport() {
+  const title = `דוח הדרכה — ${currentDaycare?.name || ''} — ${document.getElementById('profile-report-month')?.value || ''}`;
+  const body = document.getElementById('profile-report-body').value;
+  if (!body.trim()) { showToast('אין תוכן לשמירה'); return; }
+  const report = { id: Date.now(), title, body, date: new Date().toLocaleDateString('he-IL'), daycare: currentDaycare?.name || '', month: document.getElementById('profile-report-month')?.value || '' };
+  savedReports.unshift(report);
+  saveToStorage();
+  downloadWordFromReport(report);
+  showToast('נשמר והורד ✓');
+}
+
+function saveAndShareProfileWhatsApp() {
+  const title = `דוח הדרכה — ${currentDaycare?.name || ''} — ${document.getElementById('profile-report-month')?.value || ''}`;
+  const body = document.getElementById('profile-report-body').value;
+  if (!body.trim()) { showToast('אין תוכן לשמירה'); return; }
+  const report = { id: Date.now(), title, body, date: new Date().toLocaleDateString('he-IL'), daycare: currentDaycare?.name || '', month: document.getElementById('profile-report-month')?.value || '' };
+  savedReports.unshift(report);
+  saveToStorage();
+  const d = daycares.find(x => x.name === currentDaycare?.name) || {};
+  const phone = d.phone ? d.phone.replace(/[-\s]/g,'').replace(/^0/,'972') : '';
+  const msg = `*${title}*\n\n${body}`;
+  const url = phone ? `https://wa.me/${phone}?text=${encodeURIComponent(msg)}` : `https://wa.me/?text=${encodeURIComponent(msg)}`;
+  showToast('נשמר ✓');
+  window.open(url, '_blank');
+}
   if (!currentDaycare) return;
   openAddTracking();
   setTimeout(() => {
