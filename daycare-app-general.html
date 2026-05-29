@@ -423,8 +423,10 @@ async function supabaseSave(payload) { return; }
   </div>
 
   <!-- כרטיסיית דוח בפרופיל -->
+  <!-- כרטיסיית דוח בפרופיל -->
   <div class="tab-content" id="tab-report">
-    <div style="font-size:13px;color:var(--text-muted);margin-bottom:12px">כל המידע מהמעון הזה יישלח ל-Claude ליצירת הדוח</div>
+    <div style="font-size:13px;color:var(--text-muted);margin-bottom:12px">צרי דוח הדרכה חודשי מקצועי ← ערכי ← שלחי</div>
+    
     <label class="form-label">חודש</label>
     <select class="form-select" id="profile-report-month">
       <option>ינואר</option><option>פברואר</option><option>מרץ</option>
@@ -432,20 +434,39 @@ async function supabaseSave(payload) { return; }
       <option>יולי</option><option>אוגוסט</option><option>ספטמבר</option>
       <option>אוקטובר</option><option>נובמבר</option><option>דצמבר</option>
     </select>
+
     <label class="form-label">🎙️ הערות / תמלול הקלטה</label>
-    <textarea class="form-textarea" id="profile-report-notes" placeholder="הדביקי כאן תמלול הקלטה או הערות נוספות..." style="min-height:100px"></textarea>
-    <div style="background:var(--primary-pale);border-radius:var(--radius-sm);padding:12px;margin-bottom:12px;font-size:13px;color:var(--primary);line-height:1.7">
-      💡 הדוח יכלול אוטומטית:<br>
-      ✓ כל הביקורים שתיעדת<br>
-      ✓ ילדים באיתור מוקדם<br>
-      ✓ סיכום למפגש הבא
+    <textarea class="form-textarea" id="profile-report-notes" placeholder="הדביקי כאן תמלול הקלטה או הערות נוספות..." style="min-height:80px"></textarea>
+
+    <!-- כפתור יצירה -->
+    <div id="report-generate-section">
+      <button class="action-btn" onclick="generateGeminiReport()" id="gemini-generate-btn" style="display:flex;align-items:center;justify-content:center;gap:8px">
+        <span>✨</span> צרי דוח אוטומטי
+      </button>
+      <div id="gemini-loading" style="display:none;text-align:center;padding:20px;color:var(--primary)">
+        <div style="font-size:24px;margin-bottom:8px">⏳</div>
+        <div style="font-size:14px">יוצרת דוח... כמה שניות</div>
+      </div>
     </div>
-    <button class="action-btn" onclick="openClaudeReportFromProfile()" style="display:flex;align-items:center;justify-content:center;gap:8px">
-      <span>✨</span> צרי דוח עם Claude
-    </button>
-    <button class="action-btn secondary" onclick="showReportEditorFromProfile()" style="margin-top:8px">
-      ← עברי לעריכת דוח קיים
-    </button>
+
+    <!-- עריכת הדוח -->
+    <div id="report-edit-section" style="display:none;margin-top:12px">
+      <label class="form-label">✏️ עריכת הדוח</label>
+      <textarea id="profile-report-body" style="width:100%;background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;font-size:14px;font-family:Heebo,sans-serif;color:var(--text);outline:none;min-height:350px;resize:vertical;line-height:1.8;direction:rtl"></textarea>
+      
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px">
+        <button class="action-btn" onclick="saveAndDownloadProfileReport()" style="display:flex;align-items:center;justify-content:center;gap:8px">
+          <span>📄</span> שמרי והורד כ-Word
+        </button>
+        <button class="action-btn secondary" onclick="saveAndShareProfileWhatsApp()" style="display:flex;align-items:center;justify-content:center;gap:8px">
+          <span>📱</span> שמרי ושלחי בוואטסאפ
+        </button>
+        <button class="action-btn secondary" onclick="document.getElementById('report-edit-section').style.display='none';document.getElementById('report-generate-section').style.display='block'">
+          ← צרי דוח חדש
+        </button>
+      </div>
+    </div>
+  </div>
   </div>
 
   <div class="tab-content" id="tab-messages">
@@ -1259,6 +1280,973 @@ function switchTab(e, id) {
   if (id === 'tab-early' && currentDaycare) renderProfileEarlyList(currentDaycare.name);
 }
 
+const GEMINI_KEY = 'AQ.Ab8RN6LjUIh7_gptAlTXpZlaDzd7hcvtrCE1FgrXxkelS_K4JQ';
+
+async function generateGeminiReport() {
+  if (!currentDaycare) return;
+  const d = currentDaycare;
+  const month = document.getElementById('profile-report-month').value;
+  const notes = document.getElementById('profile-report-notes').value.trim();
+  const daycareVisits = visits.filter(v => v.daycare === d.name);
+  const relatedTracking = trackingItems.filter(t => t.daycare === d.name);
+
+  let visitsText = daycareVisits.length === 0
+    ? 'לא תועדו ביקורים רשמיים החודש.'
+    : daycareVisits.map((v, i) =>
+        `ביקור ${i+1} — ${v.date} (${v.type}):\nסיכום: ${v.summary||'—'}\nנקודות לשימור: ${v.strengths||'—'}\nנקודות לשיפור: ${v.improve||'—'}\nהמלצות: ${v.reco||'—'}`
+      ).join('\n\n');
+
+  let trackingText = relatedTracking.length > 0
+    ? '\n\nילדים באיתור מוקדם:\n' + relatedTracking.map(t =>
+        `• ${t.name}${t.age?' ('+t.age+')':''}: ${t.desc}${t.update?'\n  עדכון: '+t.update:''}${t.actions&&t.actions.length?'\n  פעולות: '+t.actions.join(', '):''}`
+      ).join('\n')
+    : '';
+
+  const prompt = `אני מאיה יעקב, מדריכה חינוכית.
+כתבי דוח הדרכה חודשי מקצועי בעברית חמה ואנושית עבור:
+
+🏫 ${d.name}
+📍 ${d.address || '—'}
+🗓️ ${month} 2026
+
+📋 תיעודי ביקורים:
+${visitsText}${trackingText}
+${notes ? `\n📝 הערות:\n${notes}` : ''}
+
+הדוח במבנה הבא:
+**דוח הדרכה — ${d.name} — ${month} 2026**
+מדריכה: מאיה יעקב
+
+1. סיכום ביקורים
+2. תהליכים פדגוגיים
+3. נקודות חוזק
+4. אתגרים והמלצות
+5. סיכום למפגש ההדרכה הבא
+
+כתבי בגוף ראשון.`;
+
+  // הצג loading
+  document.getElementById('gemini-generate-btn').style.display = 'none';
+  document.getElementById('gemini-loading').style.display = 'block';
+
+  try {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }]
+        })
+      }
+    );
+    const data = await res.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+    document.getElementById('gemini-loading').style.display = 'none';
+    document.getElementById('gemini-generate-btn').style.display = 'flex';
+
+    if (text) {
+      document.getElementById('profile-report-body').value = text;
+      document.getElementById('report-edit-section').style.display = 'block';
+      document.getElementById('report-generate-section').style.display = 'none';
+      showToast('הדוח נוצר! ערכי ושלחי 💜');
+    } else {
+      showToast('שגיאה ביצירת הדוח — נסי שוב');
+    }
+  } catch(e) {
+    document.getElementById('gemini-loading').style.display = 'none';
+    document.getElementById('gemini-generate-btn').style.display = 'flex';
+    showToast('שגיאת חיבור — בדקי אינטרנט');
+  }
+}
+
+function saveAndDownloadProfileReport() {
+  const title = `דוח הדרכה — ${currentDaycare?.name || ''} — ${document.getElementById('profile-report-month')?.value || ''}`;
+  const body = document.getElementById('profile-report-body').value;
+  if (!body.trim()) { showToast('אין תוכן לשמירה'); return; }
+  const report = { id: Date.now(), title, body, date: new Date().toLocaleDateString('he-IL'), daycare: currentDaycare?.name || '', month: document.getElementById('profile-report-month')?.value || '' };
+  savedReports.unshift(report);
+  saveToStorage();
+  downloadWordFromReport(report);
+  showToast('נשמר והורד ✓');
+}
+
+function saveAndShareProfileWhatsApp() {
+  const title = `דוח הדרכה — ${currentDaycare?.name || ''} — ${document.getElementById('profile-report-month')?.value || ''}`;
+  const body = document.getElementById('profile-report-body').value;
+  if (!body.trim()) { showToast('אין תוכן לשמירה'); return; }
+  const report = { id: Date.now(), title, body, date: new Date().toLocaleDateString('he-IL'), daycare: currentDaycare?.name || '', month: document.getElementById('profile-report-month')?.value || '' };
+  savedReports.unshift(report);
+  saveToStorage();
+  const d = daycares.find(x => x.name === currentDaycare?.name) || {};
+  const phone = d.phone ? d.phone.replace(/[-\s]/g,'').replace(/^0/,'972') : '';
+  const msg = `*${title}*\n\n${body}`;
+  const url = phone ? `https://wa.me/${phone}?text=${encodeURIComponent(msg)}` : `https://wa.me/?text=${encodeURIComponent(msg)}`;
+  showToast('נשמר ✓');
+  window.open(url, '_blank');
+}
+  if (!currentDaycare) return;
+  openAddTracking();
+  setTimeout(() => {
+    const sel = document.getElementById('track-daycare');
+    if (sel) sel.value = currentDaycare.name;
+  }, 50);
+}
+
+function renderProfileEarlyList(daycareName) {
+  const items = trackingItems.filter(t => t.daycare === daycareName && !t.done);
+  const container = document.getElementById('profile-early-list');
+  if (!container) return;
+  if (items.length === 0) {
+    container.innerHTML = '<div style="color:var(--text-muted);font-size:14px;text-align:center;padding:20px">אין ילדים באיתור מוקדם למעון זה</div>';
+    return;
+  }
+  container.innerHTML = items.map(t => `
+    <div class="visit-item" style="border-color:var(--accent);margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div>
+          <div style="font-size:15px;font-weight:600">👶 ${t.name}</div>
+          ${t.age ? `<div style="font-size:12px;color:var(--text-muted)">${t.age}</div>` : ''}
+        </div>
+        <button onclick="openEditTracking(${t.id})" style="background:var(--primary-pale);color:var(--primary);border:none;border-radius:8px;padding:4px 10px;font-size:12px;font-family:Heebo,sans-serif;cursor:pointer">✏️ עדכני</button>
+      </div>
+      <div style="font-size:13px;color:var(--text-muted);margin-top:6px;line-height:1.6">${t.desc}</div>
+      ${t.actions&&t.actions.length ? `<div class="visit-tags" style="margin-top:6px">${t.actions.map(a=>`<span class="visit-tag">${a}</span>`).join('')}</div>` : ''}
+      ${t.update ? `<div style="font-size:12px;color:var(--primary);margin-top:4px;font-style:italic">📝 ${t.update}</div>` : ''}
+      ${t.nextDate ? `<div style="font-size:12px;color:var(--warning);margin-top:4px">📅 מעקב הבא: ${t.nextDate}</div>` : ''}
+    </div>`).join('');
+}
+
+function openClaudeReportFromProfile() {
+  if (!currentDaycare) return;
+  const d = currentDaycare;
+  const month = document.getElementById('profile-report-month').value;
+  const notes = document.getElementById('profile-report-notes').value.trim();
+  const daycareVisits = visits.filter(v => v.daycare === d.name);
+  const relatedTracking = trackingItems.filter(t => t.daycare === d.name);
+
+  let visitsText = daycareVisits.length === 0
+    ? 'לא תועדו ביקורים רשמיים החודש.'
+    : daycareVisits.map((v, i) =>
+        `ביקור ${i+1} — ${v.date} (${v.type}):\nסיכום: ${v.summary||'—'}\nנקודות לשימור: ${v.strengths||'—'}\nנקודות לשיפור: ${v.improve||'—'}\nהמלצות: ${v.reco||'—'}`
+      ).join('\n\n');
+
+  let trackingText = relatedTracking.length > 0
+    ? '\n\n👶 ילדים באיתור מוקדם:\n' + relatedTracking.map(t =>
+        `• ${t.name}${t.age?' ('+t.age+')':''}: ${t.desc}${t.update?'\n  עדכון: '+t.update:''}${t.actions&&t.actions.length?'\n  פעולות: '+t.actions.join(', '):''}`
+      ).join('\n')
+    : '';
+
+  const prompt = `אני מאיה יעקב, מדריכה חינוכית.
+אנא כתבי עבורי דוח הדרכה חודשי מקצועי עבור:
+
+🏫 ${d.name}
+📍 ${d.address || '—'}
+🗓️ ${month} 2026
+
+━━━━━━━━━━━━━━━
+📋 תיעודי ביקורים:
+${visitsText}${trackingText}
+${notes ? `\n📝 הערות והקלטה:\n${notes}` : ''}
+━━━━━━━━━━━━━━━
+
+אנא כתבי דוח בעברית מקצועית, חמה ואנושית, במבנה הבא:
+
+**דוח הדרכה — ${d.name} — ${month} 2026**
+מדריכה: מאיה יעקב
+
+1. **סיכום ביקורים** — מה נצפה, איך הרגשת במעון
+2. **תהליכים פדגוגיים** — מה קורה עם הילדים והצוות
+3. **נקודות חוזק** — מה עובד טוב
+4. **אתגרים והמלצות** — מה צריך שיפור ואיך
+5. **סיכום למפגש ההדרכה הבא** — על מה נתמקד, מה לעבוד עליו
+
+כתבי בגוף ראשון מנקודת מבטי כמדריכה.`;
+
+  window.open(`https://claude.ai/new?q=${encodeURIComponent(prompt)}`, '_blank');
+}
+
+function showReportEditorFromProfile() {
+  if (!currentDaycare) return;
+  const month = document.getElementById('profile-report-month').value;
+  goTo('reports');
+  setTimeout(() => {
+    const sel = document.getElementById('report-daycare-select');
+    if (sel) { sel.innerHTML = daycares.map(d=>`<option>${d.name}</option>`).join(''); sel.value = currentDaycare.name; }
+    showStep(2);
+    document.getElementById('report-title').value = `דוח הדרכה — ${currentDaycare.name} — ${month} 2026`;
+  }, 150);
+}
+
+function openVisitModal() {
+  const sel = document.getElementById('visit-daycare-select');
+  sel.innerHTML = daycares.map(d => `<option>${d.name}</option>`).join('');
+  if (currentDaycare) sel.value = currentDaycare.name;
+  document.getElementById('visit-date-input').value = new Date().toISOString().split('T')[0];
+  document.getElementById('visit-summary').value = '';
+  document.getElementById('visit-strengths').value = '';
+  document.getElementById('visit-improve').value = '';
+  document.getElementById('visit-reco').value = '';
+  document.getElementById('visit-modal').classList.add('open');
+}
+
+function openAddDaycare() {
+  ['new-name','new-manager','new-phone','new-address','new-classes','new-ages','new-notes'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('add-daycare-modal').classList.add('open');
+}
+
+function closeModal() {
+  document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('open'));
+}
+
+function saveVisit() {
+  const v = {
+    daycare: document.getElementById('visit-daycare-select').value,
+    date: document.getElementById('visit-date-input').value,
+    type: document.getElementById('visit-type').value,
+    summary: document.getElementById('visit-summary').value,
+    strengths: document.getElementById('visit-strengths').value,
+    improve: document.getElementById('visit-improve').value,
+    reco: document.getElementById('visit-reco').value,
+  };
+  visits.push(v);
+  saveToStorage();
+  document.getElementById('visit-count').textContent = visits.length;
+  closeModal();
+  showToast('הביקור נשמר בהצלחה ✓');
+  if (currentDaycare && currentDaycare.name === v.daycare) renderProfileVisits(v.daycare);
+  renderAllVisits();
+}
+
+function saveDaycare() {
+  const name = document.getElementById('new-name').value.trim();
+  if (!name) { showToast('נא להכניס שם מעון'); return; }
+  const d = {
+    id: daycares.length + 1,
+    name,
+    manager: document.getElementById('new-manager').value,
+    phone: document.getElementById('new-phone').value,
+    address: document.getElementById('new-address').value,
+    classes: parseInt(document.getElementById('new-classes').value) || 0,
+    ages: document.getElementById('new-ages').value,
+    notes: document.getElementById('new-notes').value,
+    lastVisit: '',
+  };
+  daycares.push(d);
+  extraDaycares.push(d);
+  saveToStorage();
+  closeModal();
+  renderDaycares(daycares);
+  showToast('המעון נוסף בהצלחה ✓');
+}
+
+function applyTemplate() {
+  const t = document.getElementById('msg-template').value;
+  const name = currentDaycare ? currentDaycare.name : 'המעון';
+  const manager = currentDaycare ? currentDaycare.manager : 'שלום';
+  const templates = {
+    visit: `שלום ${manager},\nרציתי לסכם את ביקורי ב${name}.\n\nנקודות חיוביות:\n• \n\nנקודות לשיפור:\n• \n\nנשמח להמשיך לעבוד יחד 💜\nמאיה`,
+    reminder: `שלום ${manager},\nרציתי להזכיר לך בנוגע ל${name}.\n\n\n\nתודה,\nמאיה`,
+    praise: `שלום ${manager},\nרציתי לשלוח לך חיזוק חיובי! 🌟\n\nבביקורי ב${name} ראיתי:\n• \n\nכל הכבוד לך ולצוות!\nמאיה`,
+    followup: `שלום ${manager},\nעוקבת אחרי ההדרכה האחרונה ב${name}.\n\nאשמח לשמוע — מה השתנה?\n• \n\nתודה,\nמאיה`,
+  };
+  if (templates[t]) document.getElementById('msg-text').value = templates[t];
+}
+
+function sendWhatsApp() {
+  const msg = document.getElementById('msg-text').value.trim();
+  if (!msg) { showToast('נא לכתוב הודעה קודם'); return; }
+  const phone = currentDaycare && currentDaycare.phone
+    ? currentDaycare.phone.replace(/[-\s]/g,'').replace(/^0/, '972')
+    : '';
+  const encoded = encodeURIComponent(msg);
+  const url = phone
+    ? `https://wa.me/${phone}?text=${encoded}`
+    : `https://wa.me/?text=${encoded}`;
+  window.open(url, '_blank');
+}
+
+// ===== הקלטה =====
+function startVoiceNote() {
+  // פותח את מקליט הקול הפנימי של הטלפון
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'audio/*';
+  input.capture = 'microphone';
+  input.onchange = (e) => {
+    if (e.target.files && e.target.files[0]) {
+      document.getElementById('rec-status').textContent = 'ההקלטה התקבלה ✓ — שלחי ל-Claude לתמלול';
+      document.getElementById('rec-status').style.color = 'var(--primary)';
+      document.getElementById('rec-btn').textContent = '✓';
+      document.getElementById('rec-btn').style.background = '#25D366';
+    }
+  };
+  input.click();
+}
+
+function openClaudeForTranscription() {
+  const prompt = `אני מאיה, מדריכה חינוכית. אני שולחת לך הקלטה קולית מביקור במעון. אנא תמלל את ההקלטה בעברית ותסכם אותה בנקודות עיקריות — מה ראיתי, מה עבד טוב, ומה צריך שיפור.`;
+  window.open(`https://claude.ai/new?q=${encodeURIComponent(prompt)}`, '_blank');
+}
+
+let savedReports = JSON.parse(localStorage.getItem('nm_reports') || '[]');
+
+function showStep(n) {
+  document.getElementById('report-step1').style.display = n===1 ? 'block' : 'none';
+  document.getElementById('report-step2').style.display = n===2 ? 'block' : 'none';
+  document.getElementById('report-step3').style.display = n===3 ? 'block' : 'none';
+  document.getElementById('report-history-btn-wrap').style.display = n===3 ? 'none' : 'block';
+  if (n===3) renderReportsHistory();
+  window.scrollTo(0,0);
+}
+
+function saveReport() {
+  const title = document.getElementById('report-title').value.trim();
+  const body = document.getElementById('report-body').value.trim();
+  if (!title || !body) return false;
+  const report = {
+    id: Date.now(),
+    title,
+    body,
+    date: new Date().toLocaleDateString('he-IL'),
+    daycare: document.getElementById('report-daycare-select')?.value || '',
+    month: document.getElementById('report-month')?.value || '',
+  };
+  savedReports.unshift(report);
+  localStorage.setItem('nm_reports', JSON.stringify(savedReports));
+  return report;
+}
+
+function saveAndDownloadWord() {
+  const report = saveReport();
+  if (!report) { showToast('נא למלא כותרת ותוכן'); return; }
+  downloadWordFromReport(report);
+  showToast('הדוח נשמר והורד ✓');
+}
+
+function saveAndShareWhatsApp() {
+  const report = saveReport();
+  if (!report) { showToast('נא למלא כותרת ותוכן'); return; }
+  const sel = document.getElementById('report-daycare-select');
+  const name = sel ? sel.value : '';
+  const d = daycares.find(x => x.name === name) || {};
+  const phone = d.phone ? d.phone.replace(/[-\s]/g,'').replace(/^0/,'972') : '';
+  const msg = `*${report.title}*\n\n${report.body}`;
+  const url = phone
+    ? `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`
+    : `https://wa.me/?text=${encodeURIComponent(msg)}`;
+  showToast('הדוח נשמר ✓');
+  window.open(url, '_blank');
+}
+
+function renderReportsHistory() {
+  const container = document.getElementById('reports-history-list');
+  if (savedReports.length === 0) {
+    container.innerHTML = '<div style="color:var(--text-muted);font-size:14px;text-align:center;padding:30px">עדיין לא נשמרו דוחות.<br>הדוחות יופיעו כאן אחרי שתשמרי אותם.</div>';
+    return;
+  }
+  container.innerHTML = savedReports.map(r => `
+    <div class="visit-item" style="margin-bottom:10px;cursor:pointer" onclick="openSavedReport(${r.id})">
+      <div class="visit-date">📊 ${r.date} · ${r.daycare} · ${r.month}</div>
+      <div class="visit-summary" style="font-weight:600;margin-top:4px">${r.title}</div>
+      <div class="visit-summary" style="font-size:12px;color:var(--text-muted);margin-top:4px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">${r.body.substring(0,100)}...</div>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button onclick="event.stopPropagation();downloadWordById(${r.id})" style="flex:1;background:var(--primary-pale);color:var(--primary);border:none;border-radius:8px;padding:8px;font-size:12px;font-family:Heebo,sans-serif;cursor:pointer">📄 Word</button>
+        <button onclick="event.stopPropagation();shareById(${r.id})" style="flex:1;background:#E8F5E9;color:#2E7D32;border:none;border-radius:8px;padding:8px;font-size:12px;font-family:Heebo,sans-serif;cursor:pointer">📱 וואטסאפ</button>
+        <button onclick="event.stopPropagation();deleteReport(${r.id})" style="background:#FEE;color:#C00;border:none;border-radius:8px;padding:8px;font-size:12px;font-family:Heebo,sans-serif;cursor:pointer">🗑️</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function openSavedReport(id) {
+  const r = savedReports.find(x => x.id === id);
+  if (!r) return;
+  document.getElementById('report-title').value = r.title;
+  document.getElementById('report-body').value = r.body;
+  showStep(2);
+}
+
+function downloadWordById(id) {
+  const r = savedReports.find(x => x.id === id);
+  if (r) downloadWordFromReport(r);
+}
+
+function shareById(id) {
+  const r = savedReports.find(x => x.id === id);
+  if (!r) return;
+  const d = daycares.find(x => x.name === r.daycare) || {};
+  const phone = d.phone ? d.phone.replace(/[-\s]/g,'').replace(/^0/,'972') : '';
+  const msg = `*${r.title}*\n\n${r.body}`;
+  const url = phone ? `https://wa.me/${phone}?text=${encodeURIComponent(msg)}` : `https://wa.me/?text=${encodeURIComponent(msg)}`;
+  window.open(url, '_blank');
+}
+
+function deleteReport(id) {
+  savedReports = savedReports.filter(x => x.id !== id);
+  localStorage.setItem('nm_reports', JSON.stringify(savedReports));
+  renderReportsHistory();
+  showToast('הדוח נמחק');
+}
+
+function downloadWordFromReport(report) {
+  const rtf = `{\\rtf1\\ansi\\ansicpg1255\\deff0
+{\\fonttbl{\\f0\\froman\\fcharset177 Arial;}}
+{\\colortbl;\\red107\\green63\\blue160;}
+\\paperw11906\\paperh16838\\margl1800\\margr1800\\margt1440\\margb1440
+\\rtlpar\\qr
+{\\f0\\fs32\\b\\cf1 ${escRtf(report.title)}}
+\\par\\par
+{\\f0\\fs24 ${escRtf(report.body).replace(/\n/g,'\\par\n')}}
+\\par\\par
+{\\f0\\fs20\\i נכתב על ידי מאיה, מדריכה חינוכית · ${report.date}}
+}`;
+  const blob = new Blob([rtf], { type: 'application/rtf' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${report.title}.rtf`;
+  a.click();
+}
+
+function showReportEditor() {
+  const sel = document.getElementById('report-daycare-select');
+  const month = document.getElementById('report-month').value;
+  const name = sel ? sel.value : '';
+  document.getElementById('report-title').value = `דוח הדרכה — ${name} — ${month} 2026`;
+  document.getElementById('report-step1').style.display = 'none';
+  document.getElementById('report-step2').style.display = 'block';
+  window.scrollTo(0,0);
+}
+
+function downloadWord() {
+  const title = document.getElementById('report-title').value || 'דוח הדרכה';
+  const body = document.getElementById('report-body').value || '';
+  if (!body.trim()) { showToast('נא להכניס תוכן לדוח קודם'); return; }
+
+  // Build RTF with Hebrew support (opens in Word perfectly)
+  const rtf = `{\\rtf1\\ansi\\ansicpg1255\\deff0
+{\\fonttbl{\\f0\\froman\\fcharset177 Arial;}}
+{\\colortbl;\\red107\\green63\\blue160;}
+\\paperw11906\\paperh16838\\margl1800\\margr1800\\margt1440\\margb1440
+\\rtlpar\\qr
+{\\f0\\fs32\\b\\cf1 ${escRtf(title)}}
+\\par\\par
+{\\f0\\fs24 ${escRtf(body).replace(/\n/g,'\\par\n')}}
+\\par\\par
+{\\f0\\fs20\\i נכתב על ידי מאיה, מדריכה חינוכית}
+}`;
+
+  const blob = new Blob([rtf], { type: 'application/rtf' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${title}.rtf`;
+  a.click();
+  showToast('הקובץ הורד בהצלחה ✓');
+}
+
+function escRtf(str) {
+  return str
+    .replace(/\\/g, '\\\\')
+    .replace(/\{/g, '\\{')
+    .replace(/\}/g, '\\}')
+    .split('').map(c => {
+      const code = c.charCodeAt(0);
+      return code > 127 ? `\\'${code.toString(16).padStart(2,'0')}` : c;
+    }).join('');
+}
+
+function shareWhatsApp() {
+  const title = document.getElementById('report-title').value || 'דוח הדרכה';
+  const body = document.getElementById('report-body').value || '';
+  const sel = document.getElementById('report-daycare-select');
+  const name = sel ? sel.value : '';
+  const d = daycares.find(x => x.name === name) || {};
+  const phone = d.phone ? d.phone.replace(/[-\s]/g,'').replace(/^0/,'972') : '';
+  const msg = `*${title}*\n\n${body}`;
+  const url = phone
+    ? `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`
+    : `https://wa.me/?text=${encodeURIComponent(msg)}`;
+  window.open(url, '_blank');
+}
+
+function openClaudeReport() {
+  const sel = document.getElementById('report-daycare-select');
+  const month = document.getElementById('report-month').value;
+  const notes = document.getElementById('report-notes').value.trim();
+  const selectedName = sel.value;
+  const d = daycares.find(x => x.name === selectedName) || {};
+  const daycareVisits = visits.filter(v => v.daycare === selectedName);
+
+  // ביקורים
+  let visitsText = daycareVisits.length === 0
+    ? 'לא תועדו ביקורים רשמיים החודש.'
+    : daycareVisits.map((v, i) =>
+        `ביקור ${i+1} — ${v.date} (${v.type}):
+סיכום: ${v.summary||'—'}
+נקודות לשימור: ${v.strengths||'—'}
+נקודות לשיפור: ${v.improve||'—'}
+המלצות לצוות: ${v.reco||'—'}`
+      ).join('\n\n');
+
+  // ילדים ותהליכים קשורים למעון
+  const relatedTracking = trackingItems.filter(t => t.daycare === selectedName);
+  let trackingText = '';
+  if (relatedTracking.length > 0) {
+    trackingText = '\n\n👶 ילדים ותהליכים במעקב:\n' + relatedTracking.map(t =>
+      `• ${t.name} (${t.type === 'child' ? 'ילד/ה' : 'תהליך'}): ${t.desc}${t.update ? '\n  עדכון: ' + t.update : ''}${t.actions && t.actions.length ? '\n  פעולות: ' + t.actions.join(', ') : ''}`
+    ).join('\n');
+  }
+
+  const prompt = `אני מאיה יעקב, מדריכה חינוכית.
+אנא כתבי עבורי דוח הדרכה חודשי מקצועי עבור:
+
+🏫 ${selectedName}
+📍 ${d.address || '—'}
+🗓️ ${month} 2026
+
+━━━━━━━━━━━━━━━
+📋 תיעודי ביקורים:
+${visitsText}${trackingText}
+${notes ? `\n📝 הערות והקלטה:\n${notes}` : ''}
+━━━━━━━━━━━━━━━
+
+אנא כתבי דוח בעברית מקצועית, חמה ואנושית, במבנה הבא:
+
+**דוח הדרכה — ${selectedName} — ${month} 2026**
+מדריכה: מאיה יעקב
+
+1. **סיכום ביקורים** — מה נצפה, איך הרגשת במעון
+2. **תהליכים פדגוגיים** — מה קורה עם הילדים והצוות
+3. **נקודות חוזק** — מה עובד טוב
+4. **אתגרים והמלצות** — מה צריך שיפור ואיך
+5. **סיכום למפגש ההדרכה הבא** — על מה נתמקד, מה לעבוד עליו
+
+כתבי בגוף ראשון מנקודת מבטי כמדריכה. הדוח ישמש כמסמך מקצועי.`;
+
+  window.open(`https://claude.ai/new?q=${encodeURIComponent(prompt)}`, '_blank');
+}
+
+function updateReportPreview() {
+  const sel = document.getElementById('report-daycare-select');
+  if (!sel) return;
+  const daycareVisits = visits.filter(v => v.daycare === sel.value);
+  const container = document.getElementById('report-visits-preview');
+  if (!container) return;
+  if (daycareVisits.length === 0) {
+    container.innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:8px 0">לא תועדו ביקורים למעון זה עדיין.</div>';
+    return;
+  }
+  container.innerHTML = daycareVisits.map(v => `
+    <div class="visit-item" style="margin-bottom:8px">
+      <div class="visit-date">📅 ${v.date} · ${v.type}</div>
+      <div class="visit-summary" style="font-size:13px">${v.summary||'—'}</div>
+    </div>`).join('');
+}
+
+// ===== איתור מוקדם ובקרה =====
+function openAddDashboardItem() {
+  document.getElementById('dash-title').value = '';
+  document.getElementById('dash-text').value = '';
+  document.getElementById('dash-priority').value = '2';
+  document.getElementById('add-dashboard-modal').classList.add('open');
+}
+
+function saveDashboardItem() {
+  const title = document.getElementById('dash-title').value.trim();
+  if (!title) { showToast('נא להכניס כותרת'); return; }
+  const item = {
+    id: Date.now(),
+    priority: parseInt(document.getElementById('dash-priority').value),
+    title,
+    text: document.getElementById('dash-text').value.trim(),
+    manual: true,
+    done: false,
+  };
+  manualDashItems.unshift(item);
+  saveToStorage();
+  closeModal();
+  renderHomeAlerts();
+  showToast('נוסף ללוח הבקרה ✓');
+}
+
+function markDashItemDone(id) {
+  const item = manualDashItems.find(x => x.id === id);
+  if (item) { item.done = true; saveToStorage(); renderHomeAlerts(); showToast('סומן כטופל ✓'); }
+}
+
+function deleteDashItem(id) {
+  manualDashItems = manualDashItems.filter(x => x.id !== id);
+  saveToStorage();
+  renderHomeAlerts();
+}
+
+function renderHomeAlerts() {
+  const unvisited = getUnvisitedDaycares();
+  const pendingTracking = trackingItems.filter(t => !t.done);
+  const pendingManual = manualDashItems.filter(x => !x.done);
+
+  // עדכן מדדים בלבד
+  document.getElementById('unvisited-count').textContent = unvisited.length;
+  document.getElementById('tracking-count').textContent = pendingTracking.length;
+
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'בוקר טוב' : hour < 17 ? 'צהריים טובים' : 'ערב טוב';
+  document.getElementById('home-greeting-text').textContent = `${greeting}, מאיה 💜`;
+
+  const container = document.getElementById('dashboard-items');
+  let html = '';
+
+  // רק פריטים שהוספת ידנית
+  pendingManual.forEach(item => {
+    const colors = { 1:'#E63946', 2:'var(--warning)', 3:'var(--accent)' };
+    const bgColors = { 1:'#FCE8E8', 2:'var(--warning-light)', 3:'var(--accent-light)' };
+    const tags = { 1:'דחוף', 2:'לטיפול השבוע', 3:'לתשומת לב' };
+    const c = colors[item.priority] || 'var(--warning)';
+    const bg = bgColors[item.priority] || 'var(--warning-light)';
+    const tag = tags[item.priority] || '';
+    html += `
+      <div style="background:var(--card);border-radius:var(--radius-sm);padding:12px 14px;border:1px solid var(--border);border-right:3px solid ${c}">
+        <div style="flex:1">
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+            <span style="font-size:14px;font-weight:600">${item.title}</span>
+            <span style="font-size:10px;padding:2px 8px;border-radius:50px;background:${bg};color:${c}">${tag}</span>
+          </div>
+          ${item.text ? `<div style="font-size:12px;color:var(--text-muted);margin-top:3px;line-height:1.5">${item.text}</div>` : ''}
+        </div>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button onclick="markDashItemDone(${item.id})" style="flex:1;background:var(--primary-pale);color:var(--primary);border:none;border-radius:8px;padding:7px;font-size:12px;font-family:Heebo,sans-serif;cursor:pointer;font-weight:600">✓ טופל</button>
+          <button onclick="deleteDashItem(${item.id})" style="background:#FEE;color:#C00;border:none;border-radius:8px;padding:7px 12px;font-size:12px;font-family:Heebo,sans-serif;cursor:pointer">🗑️</button>
+        </div>
+      </div>`;
+  });
+
+  if (!html) {
+    html = `<div style="color:var(--text-muted);font-size:13px;padding:4px 0">לחצי ＋ להוסיף פריט לטיפול</div>`;
+  }
+
+  container.innerHTML = html;
+}
+
+function getUnvisitedDaycares() {
+  const now = new Date();
+  const thisMonth = now.getMonth();
+  const thisYear = now.getFullYear();
+  return daycares.filter(d => {
+    const dVisits = visits.filter(v => v.daycare === d.name);
+    if (dVisits.length === 0) return true;
+    const last = new Date(dVisits[dVisits.length-1].date);
+    return !(last.getMonth() === thisMonth && last.getFullYear() === thisYear);
+  });
+}
+
+function renderTrackingScreen() {
+  const tContainer = document.getElementById('tracking-list');
+  const active = trackingItems.filter(t => !t.done);
+  const done = trackingItems.filter(t => t.done);
+
+  if (trackingItems.length === 0) {
+    tContainer.innerHTML = `<div style="color:var(--text-muted);font-size:14px;text-align:center;padding:30px 0">
+      <div style="font-size:32px;margin-bottom:10px">👶</div>
+      עדיין לא נוספו ילדים לאיתור.<br>לחצי ＋ להוסיף.
+    </div>`;
+    return;
+  }
+
+  // קבץ לפי מעון
+  const byDaycare = {};
+  active.forEach(t => {
+    if (!byDaycare[t.daycare]) byDaycare[t.daycare] = [];
+    byDaycare[t.daycare].push(t);
+  });
+
+  let html = '';
+  Object.keys(byDaycare).forEach(daycareName => {
+    html += `<div style="font-size:13px;font-weight:700;color:var(--primary);margin:8px 0 4px">🏫 ${daycareName}</div>`;
+    byDaycare[daycareName].forEach(t => {
+      html += `
+        <div class="visit-item" style="border-color:var(--accent);margin-bottom:8px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <div>
+              <div style="font-size:15px;font-weight:600">👶 ${t.name}</div>
+              ${t.age ? `<div style="font-size:12px;color:var(--text-muted);margin-top:2px">${t.age}</div>` : ''}
+            </div>
+            <button onclick="toggleTrackDone(${t.id})" style="background:var(--primary-pale);color:var(--primary);border:none;border-radius:50px;padding:4px 12px;font-size:12px;font-family:Heebo,sans-serif;cursor:pointer;flex-shrink:0;white-space:nowrap">✓ טופל</button>
+          </div>
+          <div style="font-size:13px;color:var(--text-muted);margin-top:8px;line-height:1.6">${t.desc}</div>
+          ${t.actions&&t.actions.length ? `<div class="visit-tags" style="margin-top:8px">${t.actions.map(a=>`<span class="visit-tag">${a}</span>`).join('')}</div>` : ''}
+          ${t.update ? `<div style="font-size:12px;color:var(--primary);margin-top:6px;font-style:italic">📝 ${t.update}</div>` : ''}
+          ${t.nextDate ? `<div style="font-size:12px;color:var(--warning);margin-top:4px">📅 מעקב הבא: ${t.nextDate}</div>` : ''}
+          <div style="display:flex;gap:8px;margin-top:10px">
+            <button onclick="openEditTracking(${t.id})" style="flex:1;background:var(--primary-pale);color:var(--primary);border:none;border-radius:8px;padding:7px;font-size:12px;font-family:Heebo,sans-serif;cursor:pointer">✏️ עדכני</button>
+            <button onclick="deleteTracking(${t.id})" style="background:#FEE;color:#C00;border:none;border-radius:8px;padding:7px 12px;font-size:12px;font-family:Heebo,sans-serif;cursor:pointer">🗑️</button>
+          </div>
+        </div>`;
+    });
+  });
+
+  // טופלו
+  if (done.length > 0) {
+    html += `<div style="font-size:13px;font-weight:600;color:var(--text-muted);margin:16px 0 6px">✓ טופלו (${done.length})</div>`;
+    done.forEach(t => {
+      html += `<div style="background:var(--card);border-radius:8px;padding:10px 14px;border:1px solid var(--border);opacity:0.5;display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <div>
+          <div style="font-size:13px;font-weight:600">${t.name} · ${t.daycare}</div>
+        </div>
+        <button onclick="deleteTracking(${t.id})" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:14px">🗑️</button>
+      </div>`;
+    });
+  }
+
+  tContainer.innerHTML = html;
+}
+
+function openAddTracking() {
+  pendingTrackActions = [];
+  document.getElementById('track-actions-list').innerHTML = '';
+  ['track-name','track-desc','track-update'].forEach(id => document.getElementById(id).value='');
+  const ageEl = document.getElementById('track-age');
+  const nextEl = document.getElementById('track-next-date');
+  if (ageEl) ageEl.value = '';
+  if (nextEl) nextEl.value = '';
+  const sel = document.getElementById('track-daycare');
+  sel.innerHTML = daycares.map(d=>`<option>${d.name}</option>`).join('');
+  document.getElementById('add-tracking-modal').dataset.editId = '';
+  document.getElementById('add-tracking-modal').classList.add('open');
+}
+
+function openEditTracking(id) {
+  const t = trackingItems.find(x => x.id === id);
+  if (!t) return;
+  pendingTrackActions = [...(t.actions||[])];
+  document.getElementById('track-name').value = t.name;
+  document.getElementById('track-desc').value = t.desc || '';
+  document.getElementById('track-update').value = t.update || '';
+  const ageEl = document.getElementById('track-age');
+  const nextEl = document.getElementById('track-next-date');
+  if (ageEl) ageEl.value = t.age || '';
+  if (nextEl) nextEl.value = t.nextDate || '';
+  const sel = document.getElementById('track-daycare');
+  sel.innerHTML = daycares.map(d=>`<option>${d.name}</option>`).join('');
+  sel.value = t.daycare;
+  document.getElementById('track-actions-list').innerHTML = pendingTrackActions.map(a=>
+    `<span class="visit-tag" style="display:inline-block;margin:2px 4px 4px 0">${a}</span>`).join('');
+  document.getElementById('add-tracking-modal').dataset.editId = id;
+  document.getElementById('add-tracking-modal').classList.add('open');
+}
+
+function addTrackAction(action) {
+  if (!pendingTrackActions.includes(action)) {
+    pendingTrackActions.push(action);
+    document.getElementById('track-actions-list').innerHTML = pendingTrackActions.map(a=>
+      `<span class="visit-tag" style="display:inline-block;margin:2px 4px 4px 0">${a}</span>`).join('');
+  }
+}
+
+function saveTracking() {
+  const name = document.getElementById('track-name').value.trim();
+  if (!name) { showToast('נא להכניס כינוי'); return; }
+  const modal = document.getElementById('add-tracking-modal');
+  const editId = modal.dataset.editId;
+
+  const item = {
+    id: editId ? parseInt(editId) : Date.now(),
+    type: 'child',
+    daycare: document.getElementById('track-daycare').value,
+    name,
+    age: document.getElementById('track-age')?.value || '',
+    desc: document.getElementById('track-desc').value,
+    actions: [...pendingTrackActions],
+    update: document.getElementById('track-update').value,
+    nextDate: document.getElementById('track-next-date')?.value || '',
+    done: false,
+    createdAt: new Date().toLocaleDateString('he-IL'),
+  };
+
+  if (editId) {
+    const idx = trackingItems.findIndex(x => x.id === parseInt(editId));
+    if (idx > -1) { item.done = trackingItems[idx].done; trackingItems[idx] = item; }
+  } else {
+    trackingItems.unshift(item);
+  }
+
+  saveToStorage();
+  closeModal();
+  renderTrackingScreen();
+  renderHomeAlerts();
+  showToast(editId ? 'עודכן ✓' : 'נוסף לאיתור מוקדם ✓');
+}
+
+function toggleTrackDone(id) {
+  const item = trackingItems.find(t => t.id===id);
+  if (item) { item.done = !item.done; saveToStorage(); renderTrackingScreen(); renderHomeAlerts(); }
+}
+
+function deleteTracking(id) {
+  trackingItems = trackingItems.filter(t => t.id!==id);
+  saveToStorage();
+  renderTrackingScreen();
+  renderHomeAlerts();
+  showToast('נמחק');
+}
+
+// ===== גיבוי ושחזור =====
+function exportData() {
+  const data = {
+    version: 2,
+    exportDate: new Date().toLocaleDateString('he-IL'),
+    visits,
+    extraDaycares,
+    trackingItems,
+    manualDashItems,
+    staffData,
+    plannedVisits,
+    savedReports,
+  };
+  const content = 'BACKUP_MAYCARE_V2\n' + JSON.stringify(data);
+  const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `גיבוי-מעונות-${new Date().toLocaleDateString('he-IL').replace(/\//g,'-')}.txt`;
+  a.click();
+  showToast('הגיבוי הורד בהצלחה ✓');
+}
+
+function importData(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      let text = e.target.result;
+      if (text.startsWith('BACKUP_MAYCARE_V2\n')) {
+        text = text.replace('BACKUP_MAYCARE_V2\n', '');
+      }
+      const data = JSON.parse(text);
+      if (!data.version) { showToast('קובץ לא תקין'); return; }
+      if (data.visits) { visits.length = 0; data.visits.forEach(v => visits.push(v)); }
+      if (data.extraDaycares) { extraDaycares.length = 0; data.extraDaycares.forEach(d => { extraDaycares.push(d); daycares.push(d); }); }
+      if (data.trackingItems) { trackingItems.length = 0; data.trackingItems.forEach(t => trackingItems.push(t)); }
+      if (data.manualDashItems) { manualDashItems.length = 0; data.manualDashItems.forEach(i => manualDashItems.push(i)); }
+      if (data.staffData) Object.assign(staffData, data.staffData);
+      if (data.plannedVisits) { plannedVisits.length = 0; data.plannedVisits.forEach(p => plannedVisits.push(p)); }
+      if (data.savedReports) { savedReports.length = 0; data.savedReports.forEach(r => savedReports.push(r)); }
+      saveToStorage();
+      renderDaycares(daycares);
+      renderHomeAlerts();
+      renderPlannedVisits();
+      document.getElementById('visit-count').textContent = visits.length;
+      showToast('הנתונים שוחזרו בהצלחה ✓');
+    } catch(err) {
+      showToast('שגיאה בטעינת הקובץ');
+    }
+  };
+  reader.readAsText(file);
+}
+
+function openImport() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json';
+  input.onchange = importData;
+  input.click();
+}
+
+function saveToGoogleDrive() {
+  // שלב 1: הורד את הגיבוי
+  const data = {
+    version: 2,
+    exportDate: new Date().toLocaleDateString('he-IL'),
+    visits, extraDaycares, trackingItems,
+    manualDashItems, staffData, plannedVisits, savedReports,
+  };
+  const content = 'BACKUP_MAYCARE_V2\n' + JSON.stringify(data);
+  const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `גיבוי-מעונות.txt`;
+  a.click();
+
+  // שלב 2: פתחי Google Drive
+  setTimeout(() => {
+    window.open('https://drive.google.com/drive/my-drive', '_blank');
+    showToast('גיבוי הורד — גרור לGoogle Drive ✓');
+  }, 1000);
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+document.querySelectorAll('.modal-overlay').forEach(m => {
+  m.addEventListener('click', e => { if (e.target === m) closeModal(); });
+});
+
+const days = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+const months = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+const now = new Date();
+document.getElementById('today-date').textContent = `יום ${days[now.getDay()]}, ${now.getDate()} ב${months[now.getMonth()]} ${now.getFullYear()}`;
+
+// טעינה מהענן בהפעלה
+async function loadFromCloud() {
+  const syncIndicator = document.createElement('div');
+  syncIndicator.id = 'sync-indicator';
+  syncIndicator.innerHTML = '☁️ מסנכרן...';
+  syncIndicator.style.cssText = 'position:fixed;top:70px;left:50%;transform:translateX(-50%);background:var(--primary);color:white;padding:8px 20px;border-radius:50px;font-size:13px;z-index:999;font-family:Heebo,sans-serif;';
+  document.body.appendChild(syncIndicator);
+
+  const data = await supabaseGet();
+  if (data) {
+    // תמיד החלף עם נתוני הענן — הענן הוא המקור היחיד
+    visits.length = 0;
+    (data.visits || []).forEach(v => visits.push(v));
+
+    trackingItems.length = 0;
+    (data.tracking_items || []).forEach(t => trackingItems.push(t));
+
+    manualDashItems.length = 0;
+    (data.manual_dash_items || []).forEach(i => manualDashItems.push(i));
+
+    plannedVisits.length = 0;
+    (data.planned_visits || []).forEach(p => plannedVisits.push(p));
+
+    savedReports.length = 0;
+    (data.saved_reports || []).forEach(r => savedReports.push(r));
+
+    // staffData — החלף לגמרי
+    Object.keys(staffData).forEach(k => delete staffData[k]);
+    Object.assign(staffData, data.staff_data || {});
+
+    // שמור מקומית
+    localStorage.setItem('nm_visits', JSON.stringify(visits));
+    localStorage.setItem('nm_tracking', JSON.stringify(trackingItems));
+    localStorage.setItem('nm_dash_items', JSON.stringify(manualDashItems));
+    localStorage.setItem('nm_planned', JSON.stringify(plannedVisits));
+    localStorage.setItem('nm_reports', JSON.stringify(savedReports));
+    localStorage.setItem('nm_staff', JSON.stringify(staffData));
+  }
+
+  syncIndicator.innerHTML = '✓ מסונכרן';
+  setTimeout(() => syncIndicator.remove(), 1500);
+
+  document.getElementById('visit-count').textContent = visits.length;
+  renderDaycares(daycares);
+  renderHomeAlerts();
+  renderPlannedVisits();
+}
+
+renderDaycares(daycares);
+document.getElementById('visit-count').textContent = visits.length;
+renderHomeAlerts();
+renderPlannedVisits();
+renderMorningBriefing();
+loadFromCloud();
+</script>
+</body>
+</html>
 function openAddTrackingForProfile() {
   if (!currentDaycare) return;
   openAddTracking();
