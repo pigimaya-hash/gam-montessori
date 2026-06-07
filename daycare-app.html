@@ -1272,7 +1272,7 @@ function switchTab(e, id) {
   if (id === 'tab-early' && currentDaycare) renderProfileEarlyList(currentDaycare.name);
 }
 
-const GEMINI_KEY = 'AQ.Ab8RN6LZgMVYu7NKWmprWrJ4wEdTRX6FR5Nlhfvy2iRyVfU4Cg';
+const CLAUDE_KEY = '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';
 
 async function generateGeminiReport() {
   if (!currentDaycare) return;
@@ -1321,18 +1321,22 @@ ${notes ? `\n📝 הערות:\n${notes}` : ''}
   document.getElementById('gemini-loading').style.display = 'block';
 
   try {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${GEMINI_KEY}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }]
-        })
-      }
-    );
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': CLAUDE_KEY,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 2000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
     const data = await res.json();
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const text = data?.content?.[0]?.text || '';
 
     document.getElementById('gemini-loading').style.display = 'none';
     document.getElementById('gemini-generate-btn').style.display = 'flex';
@@ -1344,7 +1348,7 @@ ${notes ? `\n📝 הערות:\n${notes}` : ''}
       showToast('הדוח נוצר! ערכי ושלחי 💜');
     } else {
       showToast('שגיאה ביצירת הדוח — נסי שוב');
-      console.log('Gemini error:', JSON.stringify(data));
+      console.log('Claude error:', JSON.stringify(data));
     }
   } catch(e) {
     document.getElementById('gemini-loading').style.display = 'none';
