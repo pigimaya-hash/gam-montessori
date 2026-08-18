@@ -279,6 +279,14 @@ firebase.initializeApp({
   }
   .time-input:focus { outline: none; border-color: var(--sky); }
 
+  .text-input {
+    padding: 10px 12px; border: 2px solid #EEE;
+    border-radius: var(--radius-sm); font-size: 15px;
+    font-family: 'Heebo', sans-serif; color: var(--dark);
+    background: var(--card-bg); text-align: right; direction: rtl;
+  }
+  .text-input:focus { outline: none; border-color: var(--sky); }
+
   textarea.notes-input {
     width: 100%; padding: 12px; border: 2px solid #EEE;
     border-radius: var(--radius-sm); font-size: 14px;
@@ -332,6 +340,33 @@ firebase.initializeApp({
   }
   .progress-bar-fill { height: 100%; border-radius: 4px; transition: width .4s; }
   .progress-label { font-size: 11px; color: var(--light-text); margin-top: 4px; text-align: left; }
+
+  /* Developmental domains */
+  .dev-domain-row {
+    background: var(--card-bg); border-radius: var(--radius-sm);
+    padding: 14px; margin-bottom: 10px; box-shadow: var(--shadow);
+  }
+  .dev-domain-name { font-size: 15px; font-weight: 700; color: var(--dark); margin-bottom: 10px; }
+  .dev-status-btns { display: flex; gap: 8px; margin-bottom: 8px; }
+  .dev-status-btn {
+    flex: 1; padding: 10px 4px; border-radius: var(--radius-sm);
+    border: 2px solid #EEE; background: var(--card-bg);
+    cursor: pointer; font-size: 13px; font-weight: 600;
+    font-family: 'Heebo', sans-serif; color: var(--mid); transition: all .15s;
+  }
+  .dev-status-btn.on-track.selected { border-color: var(--sage); background: #F1F9F2; color: var(--sage); }
+  .dev-status-btn.in-process.selected { border-color: #D9A441; background: #FDF6E8; color: #A6772C; }
+  .dev-status-btn.follow-up.selected { border-color: var(--terracotta); background: #FFF0EC; color: var(--terracotta); }
+  .dev-note-input {
+    width: 100%; padding: 8px 10px; border: 2px solid #EEE;
+    border-radius: 10px; font-size: 13px; font-family: 'Heebo', sans-serif;
+    color: var(--dark); background: var(--card-bg); text-align: right; direction: rtl;
+  }
+  .dev-note-input:focus { outline: none; border-color: var(--sky); }
+  .dev-flag-badge {
+    display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 9px;
+    border-radius: 20px; background: #FFF0EC; color: var(--terracotta); margin-right: 6px;
+  }
 
   /* Annual plan */
   .months-list { display: flex; flex-direction: column; gap: 14px; }
@@ -1039,6 +1074,37 @@ firebase.initializeApp({
     <div class="tab-content" id="tab-annual">
       <div class="months-list" id="months-list"></div>
     </div>
+  </div>
+</div>
+
+<!-- ════════════════ DEVELOPMENTAL DOMAINS ════════════════ -->
+<div class="screen" id="screen-dev-domains">
+  <div class="topbar">
+    <button class="back-btn" onclick="navigate('pedagogic')">›</button>
+    <div class="topbar-title">🧩 תחומי התפתחות</div>
+  </div>
+  <div class="content">
+    <p style="font-size:14px;color:var(--light-text);margin-bottom:14px">בחרי ילד/ה למעקב התפתחותי:</p>
+    <div class="children-list" id="dev-domains-children-list"></div>
+  </div>
+</div>
+
+<div class="screen" id="screen-dev-domains-detail">
+  <div class="topbar">
+    <button class="back-btn" onclick="navigate('dev-domains')">›</button>
+    <div class="topbar-title" id="dev-domains-detail-title">תחומי התפתחות</div>
+  </div>
+  <div class="content">
+    <div style="margin-bottom:14px">
+      <div class="field-label">חודש / תקופה</div>
+      <input type="text" class="text-input" id="dev-domains-period" placeholder="לדוגמה: אוגוסט 2026" style="width:100%">
+    </div>
+    <div id="dev-domains-list"></div>
+    <div style="margin-top:6px">
+      <div class="field-label">💗 סיכום קצר</div>
+      <textarea class="notes-input" id="dev-domains-summary" style="height:100px" placeholder="סיכום כללי לקראת ישיבת צוות / שיחת הורים..."></textarea>
+    </div>
+    <button class="save-btn" onclick="saveDevDomains()">💾 שמירה</button>
   </div>
 </div>
 
@@ -1773,6 +1839,18 @@ const MONTHS = [
 let attendance = {};        // dateKey -> {childId -> true/false}
 let dailyUpdates = {};      // dateKey -> {childId -> {mood,food,sleep,sleepTime,notes}}
 let childProgress = {};     // childId -> {exerciseId -> 0/1/2/3}
+let devDomains = {};        // childId -> {period, summary, domains:{domainId:{status,note}}}
+
+const DEV_DOMAINS = [
+  {id:'lang',        name:'שפה ותקשורת'},
+  {id:'grossmotor',  name:'מוטוריקה גסה'},
+  {id:'finemotor',   name:'מוטוריקה עדינה'},
+  {id:'social',      name:'תפקוד חברתי'},
+  {id:'independence',name:'עצמאות'},
+  {id:'attention',   name:'קשב וריכוז'},
+  {id:'emotion',     name:'ויסות רגשי'},
+  {id:'learning',    name:'מיומנויות למידה'},
+];
 let monthlyArchive = {};    // child_id -> [{month, text}]
 let teacherNotes = {};      // exerciseId -> string
 let currentChildId = null;
@@ -1801,6 +1879,9 @@ function navigate(screen) {
     document.getElementById('screen-pedagogic').classList.add('active');
     document.getElementById('nav-pedagogic').classList.add('active');
     renderAreas();
+  } else if (screen === 'dev-domains') {
+    document.getElementById('screen-dev-domains').classList.add('active');
+    renderDevDomainsChildList();
   } else if (screen === 'meeting') {
     document.getElementById('screen-meeting').classList.add('active');
     document.getElementById('nav-meeting').classList.add('active');
@@ -2111,6 +2192,32 @@ function saveUpdate() {
 function renderAreas() {
   const grid = document.getElementById('areas-grid');
   grid.innerHTML = '';
+
+  // כרטיס תחומי התפתחות — תמיד ראשון, לפני שפה
+  const flagged = CHILDREN.filter(c => {
+    const d = (devDomains[c.id] || {}).domains || {};
+    return Object.values(d).some(v => v && v.status === 'follow-up');
+  }).length;
+  const assessed = CHILDREN.filter(c => devDomains[c.id] && devDomains[c.id].domains &&
+    Object.keys(devDomains[c.id].domains).length).length;
+  const devCard = document.createElement('div');
+  devCard.className = 'area-card';
+  devCard.onclick = () => navigate('dev-domains');
+  devCard.innerHTML = `
+    <div class="area-header">
+      <div class="area-icon">🧩</div>
+      <div>
+        <div class="area-name">תחומי התפתחות</div>
+        <div class="area-sub">מעקב התפתחותי לכל ילד</div>
+      </div>
+      <span style="font-size:18px;color:var(--light-text);margin-right:auto;padding-right:8px">‹</span>
+    </div>
+    <div class="area-progress">
+      <div class="progress-label">${assessed}/${CHILDREN.length} ילדים מוערכים${flagged ? ` · ⚠️ ${flagged} דורשים מעקב` : ''}</div>
+    </div>
+  `;
+  grid.appendChild(devCard);
+
   AREAS.forEach(area => {
     const totalEx = area.folders.reduce((s,f) => s + f.exercises.length, 0);
     const masteredEx = area.folders.reduce((s,f) =>
@@ -2140,6 +2247,89 @@ function renderAreas() {
     `;
     grid.appendChild(card);
   });
+}
+
+// ════════ DEVELOPMENTAL DOMAINS ════════
+let currentDevChild = null;
+
+function renderDevDomainsChildList() {
+  const list = document.getElementById('dev-domains-children-list');
+  list.innerHTML = '';
+  CHILDREN.forEach(child => {
+    const rec = devDomains[child.id];
+    const domainVals = rec && rec.domains ? Object.values(rec.domains) : [];
+    const flagged = domainVals.filter(v => v && v.status === 'follow-up').length;
+    const assessedCount = domainVals.filter(v => v && v.status).length;
+    const card = document.createElement('div');
+    card.className = 'child-card';
+    card.innerHTML = `
+      <div class="child-avatar" style="background:${child.color}">${child.name.charAt(0)}</div>
+      <div style="flex:1">
+        <div class="child-name">${child.name}</div>
+        <div class="child-age">${assessedCount ? `${assessedCount}/${DEV_DOMAINS.length} תחומים מולאו` : 'טרם מולא'}${flagged ? ` · <span class="dev-flag-badge">⚠️ ${flagged} דורש מעקב</span>` : ''}</div>
+      </div>
+      <span style="font-size:18px;color:var(--light-text)">‹</span>
+    `;
+    card.onclick = () => openDevDomainsChild(child);
+    list.appendChild(card);
+  });
+}
+
+function openDevDomainsChild(child) {
+  currentDevChild = child;
+  if (!devDomains[child.id]) devDomains[child.id] = { period: '', summary: '', domains: {} };
+  const rec = devDomains[child.id];
+  document.getElementById('dev-domains-detail-title').textContent = `🧩 ${child.name}`;
+  document.getElementById('dev-domains-period').value = rec.period || '';
+  document.getElementById('dev-domains-summary').value = rec.summary || '';
+  renderDevDomainsMatrix(rec);
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-dev-domains-detail').classList.add('active');
+}
+
+function renderDevDomainsMatrix(rec) {
+  const wrap = document.getElementById('dev-domains-list');
+  wrap.innerHTML = '';
+  DEV_DOMAINS.forEach(domain => {
+    const entry = rec.domains[domain.id] || { status: '', note: '' };
+    const row = document.createElement('div');
+    row.className = 'dev-domain-row';
+    row.innerHTML = `
+      <div class="dev-domain-name">${domain.name}</div>
+      <div class="dev-status-btns">
+        <button class="dev-status-btn on-track ${entry.status === 'on-track' ? 'selected' : ''}" onclick="setDevStatus('${domain.id}','on-track',this)">✓ תואם</button>
+        <button class="dev-status-btn in-process ${entry.status === 'in-process' ? 'selected' : ''}" onclick="setDevStatus('${domain.id}','in-process',this)">⋯ בתהליך</button>
+        <button class="dev-status-btn follow-up ${entry.status === 'follow-up' ? 'selected' : ''}" onclick="setDevStatus('${domain.id}','follow-up',this)">⚠ דורש מעקב</button>
+      </div>
+      <input type="text" class="dev-note-input" placeholder="הערה (לא חובה)" value="${entry.note || ''}" onchange="setDevNote('${domain.id}', this.value)">
+    `;
+    wrap.appendChild(row);
+  });
+}
+
+function setDevStatus(domainId, status, btn) {
+  const rec = devDomains[currentDevChild.id];
+  if (!rec.domains[domainId]) rec.domains[domainId] = { status: '', note: '' };
+  // לחיצה חוזרת על אותו מצב מבטלת אותו
+  rec.domains[domainId].status = rec.domains[domainId].status === status ? '' : status;
+  const row = btn.closest('.dev-domain-row');
+  row.querySelectorAll('.dev-status-btn').forEach(b => b.classList.remove('selected'));
+  if (rec.domains[domainId].status) btn.classList.add('selected');
+}
+
+function setDevNote(domainId, note) {
+  const rec = devDomains[currentDevChild.id];
+  if (!rec.domains[domainId]) rec.domains[domainId] = { status: '', note: '' };
+  rec.domains[domainId].note = note;
+}
+
+function saveDevDomains() {
+  const rec = devDomains[currentDevChild.id];
+  rec.period = document.getElementById('dev-domains-period').value;
+  rec.summary = document.getElementById('dev-domains-summary').value;
+  saveAll();
+  showToast(`המעקב עבור ${currentDevChild.name} נשמר ✓`);
+  navigate('dev-domains');
 }
 
 // ════════ AREA DETAIL ════════
@@ -3269,6 +3459,7 @@ function startRealtimeSync() {
           if (reopenedCard) reopenedCard.classList.add('open');
         }
       }
+      if (id === 'screen-dev-domains') renderDevDomainsChildList();
       if (id === 'screen-meeting')     renderMeeting();
       if (id === 'screen-parents')     renderParents();
       if (id === 'screen-calendar')    renderCalendar();
@@ -3292,6 +3483,7 @@ async function saveAll() {
     fetch(`${FB_URL}/ganData/monthlyArchive.json`, { method: 'PUT', body: JSON.stringify(monthlyArchive) }),
     fetch(`${FB_URL}/ganData/children.json`, { method: 'PUT', body: JSON.stringify(CHILDREN) }),
     fetch(`${FB_URL}/ganData/archivedChildren.json`, { method: 'PUT', body: JSON.stringify(archivedChildren) }),
+    fetch(`${FB_URL}/ganData/devDomains.json`, { method: 'PUT', body: JSON.stringify(devDomains) }),
   ];
   try { await Promise.all(saves); } catch(e) { console.error('שמירה נכשלה', e); }
 }
@@ -3339,6 +3531,7 @@ async function loadAll() {
     if (data.monthlyArchive)  monthlyArchive  = data.monthlyArchive;
     if (data.children)        CHILDREN        = data.children;
     if (data.archivedChildren) archivedChildren = data.archivedChildren;
+    if (data.devDomains) devDomains = data.devDomains;
   } catch(e) { console.error('טעינה נכשלה', e); }
   hideLoadingOverlay();
 }
