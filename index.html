@@ -2720,13 +2720,15 @@ function renderMonthlyChildList() {
     const prog = childProgress[child.id] || {};
     const masteredCount = Object.values(prog).filter(v => v === 3).length;
     const practicingCount = Object.values(prog).filter(v => v === 2).length;
+    const devRec = devDomains[child.id];
+    const devFlagged = devRec && devRec.domains ? Object.values(devRec.domains).filter(v => v && v.status === 'follow-up').length : 0;
     const card = document.createElement('div');
     card.className = 'child-card';
     card.innerHTML = `
       <div class="child-avatar" style="background:${child.color}">${child.name.charAt(0)}</div>
       <div style="flex:1">
         <div class="child-name">${child.name}</div>
-        <div class="child-age">✅ ${masteredCount} שלט/ה · ⭐ ${practicingCount} מתאמן/ת</div>
+        <div class="child-age">✅ ${masteredCount} שלט/ה · ⭐ ${practicingCount} מתאמן/ת${devFlagged ? ` · <span class="dev-flag-badge">⚠️ ${devFlagged}</span>` : ''}</div>
       </div>
       <span style="font-size:18px;color:var(--light-text)">‹</span>
     `;
@@ -2822,6 +2824,31 @@ function renderMonthlySummary(child) {
     ${masteredNames.length ? `<div style="background:var(--sand);border-radius:10px;padding:10px;margin-bottom:8px"><div style="font-size:12px;font-weight:700;color:var(--sage);margin-bottom:4px">✅ שלט/ה ב:</div><div style="font-size:12px;color:var(--mid);line-height:1.6">${masteredNames.join(' · ')}</div></div>` : ''}
     ${practicingNames.length ? `<div style="background:var(--sand);border-radius:10px;padding:10px;margin-bottom:8px"><div style="font-size:12px;font-weight:700;color:var(--sky);margin-bottom:4px">⭐ בתהליך:</div><div style="font-size:12px;color:var(--mid);line-height:1.6">${practicingNames.join(' · ')}</div></div>` : ''}
     ${notes ? `<div style="background:var(--sand);border-radius:10px;padding:10px"><div style="font-size:12px;font-weight:700;color:var(--mid);margin-bottom:4px">📝 הערות:</div><div style="font-size:12px;color:var(--mid)">${notes}</div></div>` : ''}
+    ${renderMonthlyDevDomainsBlock(child)}
+  `;
+}
+
+function renderMonthlyDevDomainsBlock(child) {
+  const rec = devDomains[child.id];
+  if (!rec || !rec.domains) return '';
+  const onTrack = [], inProcess = [], followUp = [];
+  DEV_DOMAINS.forEach(d => {
+    const entry = rec.domains[d.id];
+    if (!entry || !entry.status) return;
+    const label = entry.note ? `${d.name} (${entry.note})` : d.name;
+    if (entry.status === 'on-track') onTrack.push(label);
+    else if (entry.status === 'in-process') inProcess.push(label);
+    else if (entry.status === 'follow-up') followUp.push(label);
+  });
+  if (!onTrack.length && !inProcess.length && !followUp.length && !rec.summary) return '';
+  return `
+    <div style="background:var(--sand);border-radius:10px;padding:10px;margin-top:8px">
+      <div style="font-size:12px;font-weight:700;color:var(--dark);margin-bottom:6px">🧩 תחומי התפתחות${rec.period ? ` · ${rec.period}` : ''}</div>
+      ${followUp.length ? `<div style="font-size:12px;color:var(--terracotta);margin-bottom:3px">⚠ דורש מעקב: ${followUp.join(' · ')}</div>` : ''}
+      ${inProcess.length ? `<div style="font-size:12px;color:#A6772C;margin-bottom:3px">⋯ בתהליך: ${inProcess.join(' · ')}</div>` : ''}
+      ${onTrack.length ? `<div style="font-size:12px;color:var(--sage);margin-bottom:3px">✓ תואם: ${onTrack.join(' · ')}</div>` : ''}
+      ${rec.summary ? `<div style="font-size:12px;color:var(--mid);margin-top:6px;padding-top:6px;border-top:1px solid #EEE">💗 ${rec.summary}</div>` : ''}
+    </div>
   `;
 }
 
@@ -2888,12 +2915,28 @@ function buildChildDataSummary(child) {
     });
   });
 
+  // developmental domains
+  const devRec = devDomains[child.id];
+  const devOnTrack = [], devInProcess = [], devFollowUp = [];
+  if (devRec && devRec.domains) {
+    DEV_DOMAINS.forEach(d => {
+      const entry = devRec.domains[d.id];
+      if (!entry || !entry.status) return;
+      const label = entry.note ? `${d.name} (${entry.note})` : d.name;
+      if (entry.status === 'on-track') devOnTrack.push(label);
+      else if (entry.status === 'in-process') devInProcess.push(label);
+      else if (entry.status === 'follow-up') devFollowUp.push(label);
+    });
+  }
+
   return {
     name: child.name,
     mastered: masteredExercises,
     practicing: practicingExercises,
     moodSummary,
     notes: notes.slice(0, 5),
+    devOnTrack, devInProcess, devFollowUp,
+    devSummary: (devRec && devRec.summary) || '',
   };
 }
 
@@ -2912,11 +2955,17 @@ async function generateUpdate() {
 - תרגילים בתהליך (${summary.practicing.length}): ${summary.practicing.slice(0,6).join(', ') || 'ממשיכים לחקור'}
 - מצב רוח החודש: ${summary.moodSummary || 'לא הוזן'}
 - הערות מורה: ${summary.notes.join('. ') || 'אין הערות מיוחדות'}
+${summary.devFollowUp.length || summary.devInProcess.length || summary.devSummary ? `
+מעקב התפתחותי (רגיש — יש לשלב בעדינות ובטון תומך, ללא ניסוח מדאיג):
+- תחומים תואמים להתפתחות: ${summary.devOnTrack.join(', ') || '—'}
+- תחומים בתהליך: ${summary.devInProcess.join(', ') || '—'}
+- תחומים הדורשים מעקב: ${summary.devFollowUp.join(', ') || '—'}
+- סיכום המדריכות: ${summary.devSummary || '—'}` : ''}
 
 כתוב עדכון של 3-4 פסקאות קצרות:
 1. פתיחה חמה ואישית עם שם הילד/ה
 2. התקדמות בלמידה — מה שלט/ה, מה מעסיק אותו/ה כרגע
-3. תצפית אישית — משהו שראית שמגדיר את הילד/ה החודש
+3. תצפית אישית — משהו שראית שמגדיר את הילד/ה החודש${summary.devFollowUp.length ? '. אם רלוונטי, שלבי אזכור עדין ותומך של תחום שדורש תשומת לב נוספת, בלי להדאיג' : ''}
 4. סיום מעודד ומחבר עם ההורים
 
 כתוב בגוף ראשון ("שמנו לב", "אנחנו רואים"), בגובה העיניים, ללא ז'רגון, עם חמימות. אל תמנה רשימות — כתוב פסקאות זורמות.`;
