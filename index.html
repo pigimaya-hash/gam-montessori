@@ -3257,7 +3257,18 @@ function startRealtimeSync() {
       const id = active.id;
       if (id === 'screen-attendance')  renderAttendance();
       if (id === 'screen-updates')     renderUpdates();
-      if (id === 'screen-pedagogic')   renderMonths();
+      if (id === 'screen-pedagogic') {
+        // שמירת החודש הפתוח לפני הרענון, כדי שעדכון חי לא יסגור אותו
+        const monthsList = document.getElementById('months-list');
+        const openIdx = monthsList
+          ? Array.from(monthsList.children).findIndex(c => c.classList.contains('open'))
+          : -1;
+        renderMonths();
+        if (openIdx >= 0) {
+          const reopenedCard = document.getElementById('months-list').children[openIdx];
+          if (reopenedCard) reopenedCard.classList.add('open');
+        }
+      }
       if (id === 'screen-meeting')     renderMeeting();
       if (id === 'screen-parents')     renderParents();
       if (id === 'screen-calendar')    renderCalendar();
