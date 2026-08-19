@@ -3610,9 +3610,30 @@ async function loadAll() {
     if (data.archivedChildren) archivedChildren = data.archivedChildren;
     if (data.devDomains) devDomains = data.devDomains;
     if (!data.childrenV2Migrated) runChildrenMigrationV2();
+    if (!data.childrenV3Migrated) runChildrenMigrationV3();
     CHILDREN.sort((a, b) => a.name.localeCompare(b.name, 'he'));
   } catch(e) { console.error('טעינה נכשלה', e); }
   hideLoadingOverlay();
+}
+
+// ════════ CHILDREN LIST FIX V3 (תיקון כפילות אלי מדר + הוספת עפרי רחמים) ════════
+function runChildrenMigrationV3() {
+  // הסרת כפילות של אלי מדר (משאירים רק רשומה אחת)
+  let seenAliMadar = false;
+  CHILDREN = CHILDREN.filter(c => {
+    if (c.name === 'אלי מדר') {
+      if (seenAliMadar) return false;
+      seenAliMadar = true;
+    }
+    return true;
+  });
+  // הוספת עפרי רחמים אם חסר (ילד אחר לגמרי מ"עפרי" הישן שכבר עזב)
+  if (!CHILDREN.find(c => c.name === 'עפרי רחמים')) {
+    CHILDREN.push({ id: Date.now(), name: 'עפרי רחמים', age: '', birthDate: '07/01/2023', color: COLORS[CHILDREN.length % COLORS.length] });
+  }
+  CHILDREN.sort((a, b) => a.name.localeCompare(b.name, 'he'));
+  saveAll();
+  fetch(fbUrl('/ganData/childrenV3Migrated.json'), { method: 'PUT', body: JSON.stringify(true) });
 }
 
 // ════════ CHILDREN LIST MIGRATION (אוגוסט 2026) ════════
