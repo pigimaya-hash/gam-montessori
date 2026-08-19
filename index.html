@@ -1095,6 +1095,7 @@ firebase.initializeApp({
     <div class="topbar-title" id="dev-domains-detail-title">תחומי התפתחות</div>
   </div>
   <div class="content">
+    <div id="dev-domains-birthdate" style="font-size:13px;color:var(--sky);font-weight:600;margin:-8px 0 14px"></div>
     <div style="margin-bottom:14px">
       <div class="field-label">חודש / תקופה</div>
       <input type="text" class="text-input" id="dev-domains-period" placeholder="לדוגמה: אוגוסט 2026" style="width:100%">
@@ -1230,6 +1231,7 @@ firebase.initializeApp({
         <div class="cp-avatar" id="monthly-avatar" style="width:48px;height:48px;font-size:20px"></div>
         <div>
           <div style="font-size:18px;font-weight:700" id="monthly-child-name-title"></div>
+          <div style="font-size:12px;color:var(--sky);font-weight:600;margin-top:2px" id="monthly-child-birthdate"></div>
           <div style="font-size:12px;color:var(--light-text)" id="monthly-data-summary"></div>
         </div>
         <button class="back-to-list-btn" onclick="backToMonthlyList()">← חזרה</button>
@@ -1483,41 +1485,58 @@ firebase.initializeApp({
 const COLORS = ['#C4714F','#7A9E7E','#6B9EB5','#B07DB5','#D4A44C','#E87A6B','#5B8FA8','#8BAF6E'];
 
 let CHILDREN = [
+  {id:2,name:'אדם שרידן',age:'',birthDate:'09/12/2021',color:COLORS[1]},
+  {id:3,name:'אילון פנט',age:'',birthDate:'24/03/2021',color:COLORS[2]},
+  {id:4,name:'אמה ביצ\'ר',age:'',birthDate:'14/02/2021',color:COLORS[3]},
+  {id:5,name:'אמה דריימן',age:'',birthDate:'14/04/2021',color:COLORS[4]},
+  {id:7,name:'גפן בן מאור',age:'',birthDate:'08/10/2021',color:COLORS[6]},
+  {id:9,name:'דן גולובצ\'ינר',age:'',birthDate:'11/04/2021',color:COLORS[0]},
+  {id:12,name:'ינאי לייבוביץ',age:'',birthDate:'04/02/2022',color:COLORS[3]},
+  {id:13,name:'ירדן מדר',age:'',birthDate:'25/06/2022',color:COLORS[4]},
+  {id:15,name:'כרמל הלר כהן',age:'',birthDate:'25/10/2022',color:COLORS[6]},
+  {id:16,name:'ליה הכהן',age:'',birthDate:'26/11/2021',color:COLORS[7]},
+  {id:17,name:'מאי נחמה',age:'',birthDate:'19/09/2022',color:COLORS[0]},
+  {id:19,name:'מירון פאליי',age:'',birthDate:'11/10/2020',color:COLORS[2]},
+  {id:20,name:'נגה הרנכל חלמר',age:'',birthDate:'13/06/2022',color:COLORS[3]},
+  {id:25,name:'עפרי רחמים',age:'',birthDate:'07/01/2023',color:COLORS[0]},
+  {id:28,name:'רביד משה',age:'',birthDate:'18/10/2022',color:COLORS[3]},
+  {id:29,name:'רובין פנט',age:'',birthDate:'03/03/2021',color:COLORS[4]},
+  {id:30,name:'רן שפיגלמו',age:'',birthDate:'06/06/2021',color:COLORS[5]},
+  {id:31,name:'שיר רוזמן',age:'',birthDate:'13/01/2023',color:COLORS[6]},
+  {id:32,name:'תום ברנדט',age:'',birthDate:'12/12/2021',color:COLORS[7]},
+  {id:33,name:'תמרה סטולר מנקו',age:'',birthDate:'12/04/2022',color:COLORS[0]},
+  // ילדים חדשים שהצטרפו
+  {id:34,name:'איילה גת',age:'',birthDate:'18/09/2023',color:COLORS[1]},
+  {id:35,name:'איתן שרף',age:'',birthDate:'29/08/2022',color:COLORS[2]},
+  {id:36,name:'אלי מדר',age:'',birthDate:'05/01/2021',color:COLORS[3]},
+  {id:37,name:'גאיה פנקובסקי כהן',age:'',birthDate:'07/11/2023',color:COLORS[4]},
+  {id:38,name:'גלי גורביץ',age:'',birthDate:'25/11/2022',color:COLORS[5]},
+  {id:39,name:'דורון אריכא בן דוד',age:'',birthDate:'06/02/2022',color:COLORS[6]},
+  {id:40,name:'דניאל דומבוביץ',age:'',birthDate:'03/04/2023',color:COLORS[7]},
+  {id:41,name:'דניאל קרסולה',age:'',birthDate:'30/06/2022',color:COLORS[0]},
+  {id:42,name:'יונתן מיכאל גולדברג הכט',age:'',birthDate:'22/09/2022',color:COLORS[1]},
+  {id:43,name:'ירדן ספקטור',age:'',birthDate:'31/05/2023',color:COLORS[2]},
+  {id:44,name:'כרמל אדלר',age:'',birthDate:'15/06/2023',color:COLORS[3]},
+  {id:45,name:'נמרוד אריכא בן דוד',age:'',birthDate:'28/08/2023',color:COLORS[4]},
+  {id:46,name:'סתיו בכר דמרי',age:'',birthDate:'26/09/2022',color:COLORS[5]},
+  {id:47,name:'עלמה וילין',age:'',birthDate:'30/06/2023',color:COLORS[6]},
+  {id:48,name:'רורי גוב',age:'',birthDate:'09/02/2023',color:COLORS[7]},
+];
+let archivedChildren = [
   {id:1,name:'אדם דריימן',age:'',color:COLORS[0]},
-  {id:2,name:'אדם שרידן',age:'',color:COLORS[1]},
-  {id:3,name:'אילון',age:'',color:COLORS[2]},
-  {id:4,name:'אמה ביצ\'ר',age:'',color:COLORS[3]},
-  {id:5,name:'אמה דריימן',age:'',color:COLORS[4]},
   {id:6,name:'אפיק',age:'',color:COLORS[5]},
-  {id:7,name:'גפן בן מאור',age:'',color:COLORS[6]},
   {id:8,name:'גפן רומן גת',age:'',color:COLORS[7]},
-  {id:9,name:'דן',age:'',color:COLORS[0]},
   {id:10,name:'זוהר',age:'',color:COLORS[1]},
   {id:11,name:'יולי',age:'',color:COLORS[2]},
-  {id:12,name:'ינאי',age:'',color:COLORS[3]},
-  {id:13,name:'ירדן',age:'',color:COLORS[4]},
   {id:14,name:'כפיר',age:'',color:COLORS[5]},
-  {id:15,name:'כרמל',age:'',color:COLORS[6]},
-  {id:16,name:'ליה',age:'',color:COLORS[7]},
-  {id:17,name:'מאי',age:'',color:COLORS[0]},
   {id:18,name:'מיי רי',age:'',color:COLORS[1]},
-  {id:19,name:'מירון',age:'',color:COLORS[2]},
-  {id:20,name:'נגה',age:'',color:COLORS[3]},
   {id:21,name:'נור',age:'',color:COLORS[4]},
   {id:22,name:'נעמי מנסור',age:'',color:COLORS[5]},
   {id:23,name:'נעמי מרקוביץ',age:'',color:COLORS[6]},
   {id:24,name:'עידו',age:'',color:COLORS[7]},
-  {id:25,name:'עפרי',age:'',color:COLORS[0]},
   {id:26,name:'פלג',age:'',color:COLORS[1]},
   {id:27,name:'קרני',age:'',color:COLORS[2]},
-  {id:28,name:'רביד',age:'',color:COLORS[3]},
-  {id:29,name:'רובין',age:'',color:COLORS[4]},
-  {id:30,name:'רן',age:'',color:COLORS[5]},
-  {id:31,name:'שיר',age:'',color:COLORS[6]},
-  {id:32,name:'תום',age:'',color:COLORS[7]},
-  {id:33,name:'תמרה',age:'',color:COLORS[0]},
-];
-let archivedChildren = []; // ילדים שעזבו
+]; // ילדים שעזבו
 
 const AREAS = [
   {id:'language', name:'שפה', icon:'📖', color:'#6B9EB5',
@@ -2280,6 +2299,7 @@ function openDevDomainsChild(child) {
   if (!devDomains[child.id]) devDomains[child.id] = { period: '', summary: '', domains: {} };
   const rec = devDomains[child.id];
   document.getElementById('dev-domains-detail-title').textContent = `🧩 ${child.name}`;
+  document.getElementById('dev-domains-birthdate').textContent = child.birthDate ? `🎂 נולד/ה: ${child.birthDate}` : '';
   document.getElementById('dev-domains-period').value = rec.period || '';
   document.getElementById('dev-domains-summary').value = rec.summary || '';
   renderDevDomainsMatrix(rec);
@@ -2750,6 +2770,7 @@ function openMonthlyChild(child) {
   av.style.background = child.color;
   av.textContent = child.name.charAt(0);
   document.getElementById('monthly-child-name-title').textContent = child.name;
+  document.getElementById('monthly-child-birthdate').textContent = child.birthDate ? `🎂 נולד/ה: ${child.birthDate}` : '';
 
   // data summary
   const prog = childProgress[child.id] || {};
@@ -3194,7 +3215,7 @@ function renderManageChildren() {
     archList.innerHTML = '<div style="font-size:13px;color:var(--light-text);text-align:center;padding:12px">אין ילדים בארכיון</div>';
     return;
   }
-  archivedChildren.forEach(child => {
+  [...archivedChildren].sort((a, b) => a.name.localeCompare(b.name, 'he')).forEach(child => {
     const el = document.createElement('div');
     el.style.cssText = 'background:var(--card-bg);border-radius:var(--radius);padding:14px 16px;display:flex;align-items:center;gap:12px;box-shadow:var(--shadow);opacity:0.7';
     el.innerHTML = `
@@ -3581,8 +3602,81 @@ async function loadAll() {
     if (data.children)        CHILDREN        = data.children;
     if (data.archivedChildren) archivedChildren = data.archivedChildren;
     if (data.devDomains) devDomains = data.devDomains;
+    if (!data.childrenV2Migrated) runChildrenMigrationV2();
+    CHILDREN.sort((a, b) => a.name.localeCompare(b.name, 'he'));
   } catch(e) { console.error('טעינה נכשלה', e); }
   hideLoadingOverlay();
+}
+
+// ════════ CHILDREN LIST MIGRATION (אוגוסט 2026) ════════
+function runChildrenMigrationV2() {
+  const leftIds = [1,6,8,10,11,14,18,21,22,23,24,26,27];
+  const updates = {
+    2:{name:'אדם שרידן',birthDate:'09/12/2021'},
+    3:{name:'אילון פנט',birthDate:'24/03/2021'},
+    4:{name:'אמה ביצ\'ר',birthDate:'14/02/2021'},
+    5:{name:'אמה דריימן',birthDate:'14/04/2021'},
+    7:{name:'גפן בן מאור',birthDate:'08/10/2021'},
+    9:{name:'דן גולובצ\'ינר',birthDate:'11/04/2021'},
+    12:{name:'ינאי לייבוביץ',birthDate:'04/02/2022'},
+    13:{name:'ירדן מדר',birthDate:'25/06/2022'},
+    15:{name:'כרמל הלר כהן',birthDate:'25/10/2022'},
+    16:{name:'ליה הכהן',birthDate:'26/11/2021'},
+    17:{name:'מאי נחמה',birthDate:'19/09/2022'},
+    19:{name:'מירון פאליי',birthDate:'11/10/2020'},
+    20:{name:'נגה הרנכל חלמר',birthDate:'13/06/2022'},
+    25:{name:'עפרי רחמים',birthDate:'07/01/2023'},
+    28:{name:'רביד משה',birthDate:'18/10/2022'},
+    29:{name:'רובין פנט',birthDate:'03/03/2021'},
+    30:{name:'רן שפיגלמו',birthDate:'06/06/2021'},
+    31:{name:'שיר רוזמן',birthDate:'13/01/2023'},
+    32:{name:'תום ברנדט',birthDate:'12/12/2021'},
+    33:{name:'תמרה סטולר מנקו',birthDate:'12/04/2022'},
+  };
+  const newChildren = [
+    {id:34,name:'איילה גת',birthDate:'18/09/2023'},
+    {id:35,name:'איתן שרף',birthDate:'29/08/2022'},
+    {id:36,name:'אלי מדר',birthDate:'05/01/2021'},
+    {id:37,name:'גאיה פנקובסקי כהן',birthDate:'07/11/2023'},
+    {id:38,name:'גלי גורביץ',birthDate:'25/11/2022'},
+    {id:39,name:'דורון אריכא בן דוד',birthDate:'06/02/2022'},
+    {id:40,name:'דניאל דומבוביץ',birthDate:'03/04/2023'},
+    {id:41,name:'דניאל קרסולה',birthDate:'30/06/2022'},
+    {id:42,name:'יונתן מיכאל גולדברג הכט',birthDate:'22/09/2022'},
+    {id:43,name:'ירדן ספקטור',birthDate:'31/05/2023'},
+    {id:44,name:'כרמל אדלר',birthDate:'15/06/2023'},
+    {id:45,name:'נמרוד אריכא בן דוד',birthDate:'28/08/2023'},
+    {id:46,name:'סתיו בכר דמרי',birthDate:'26/09/2022'},
+    {id:47,name:'עלמה וילין',birthDate:'30/06/2023'},
+    {id:48,name:'רורי גוב',birthDate:'09/02/2023'},
+  ];
+
+  // העברת עוזבים לארכיון (בטוח להרצה כפולה)
+  CHILDREN.forEach(c => {
+    if (leftIds.includes(c.id) && !archivedChildren.find(a => a.id === c.id)) {
+      archivedChildren.push(c);
+    }
+  });
+  CHILDREN = CHILDREN.filter(c => !leftIds.includes(c.id));
+
+  // עדכון שם מלא + תאריך לידה לממשיכים
+  CHILDREN.forEach(c => {
+    if (updates[c.id]) {
+      c.name = updates[c.id].name;
+      c.birthDate = updates[c.id].birthDate;
+    }
+  });
+
+  // הוספת ילדים חדשים (בטוח להרצה כפולה)
+  newChildren.forEach((nc, i) => {
+    if (!CHILDREN.find(c => c.id === nc.id)) {
+      CHILDREN.push({ id: nc.id, name: nc.name, age: '', birthDate: nc.birthDate, color: COLORS[(CHILDREN.length + i) % COLORS.length] });
+    }
+  });
+
+  CHILDREN.sort((a, b) => a.name.localeCompare(b.name, 'he'));
+  saveAll();
+  fetch(`${FB_URL}/ganData/childrenV2Migrated.json`, { method: 'PUT', body: JSON.stringify(true) });
 }
 
 // ════════ LOGIN ════════
