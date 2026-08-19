@@ -1990,7 +1990,7 @@ function toggleAttendance(id) {
   if (!attendance[key]) attendance[key] = {};
   attendance[key][id] = !attendance[key][id];
   // שמור רק את נוכחות היום
-  fetch(`${FB_URL}/ganData/attendance/${key}.json`, {
+  fetch(fbUrl(`/ganData/attendance/${key}.json`), {
     method: 'PUT',
     body: JSON.stringify(attendance[key])
   }).catch(e => console.error('שמירה נכשלה', e));
@@ -2631,8 +2631,8 @@ function archiveMeeting() {
   document.getElementById('prev-summary').value = '';
   renderTopics();
   renderMeetingArchive();
-  fetch(`${FB_URL}/ganData/meeting.json`, { method: 'PUT', body: JSON.stringify(meetingData) });
-  fetch(`${FB_URL}/ganData/meetingArchive.json`, { method: 'PUT', body: JSON.stringify(meetingArchive) });
+  fetch(fbUrl(`/ganData/meeting.json`), { method: 'PUT', body: JSON.stringify(meetingData) });
+  fetch(fbUrl(`/ganData/meetingArchive.json`), { method: 'PUT', body: JSON.stringify(meetingArchive) });
   showToast('הישיבה נשמרה לארכיון ✓');
 }
 
@@ -3474,11 +3474,18 @@ function scheduleNotification(rem) {
 
 // ════════ FIREBASE SYNC ════════
 const FB_URL = 'https://makom-ligdol-a9f7d-default-rtdb.firebaseio.com';
+let FB_TOKEN = null;
+function fbUrl(path) {
+  return FB_TOKEN ? `${FB_URL}${path}?auth=${FB_TOKEN}` : `${FB_URL}${path}`;
+}
 
 // סנכרון בזמן אמת
+let ganDataEvtSource = null;
 function startRealtimeSync() {
   // סנכרון כל הנתונים בזמן אמת
-  const evtSource = new EventSource(`${FB_URL}/ganData.json`);
+  if (ganDataEvtSource) ganDataEvtSource.close();
+  const evtSource = new EventSource(fbUrl(`/ganData.json`));
+  ganDataEvtSource = evtSource;
   evtSource.addEventListener('put', e => {
     try {
       const d = JSON.parse(e.data);
@@ -3542,25 +3549,25 @@ function startRealtimeSync() {
 async function saveAll() {
   // שמירה נפרדת לכל מקטע למניעת דריסת נתונים
   const saves = [
-    fetch(`${FB_URL}/ganData/dailyUpdates.json`, { method: 'PUT', body: JSON.stringify(dailyUpdates) }),
-    fetch(`${FB_URL}/ganData/childProgress.json`, { method: 'PUT', body: JSON.stringify(childProgress) }),
-    fetch(`${FB_URL}/ganData/teacherNotes.json`, { method: 'PUT', body: JSON.stringify(teacherNotes) }),
-    fetch(`${FB_URL}/ganData/months.json`, { method: 'PUT', body: JSON.stringify(MONTHS.map(m => m.activities)) }),
-    fetch(`${FB_URL}/ganData/meeting.json`, { method: 'PUT', body: JSON.stringify(meetingData) }),
-    fetch(`${FB_URL}/ganData/parents.json`, { method: 'PUT', body: JSON.stringify(parentsData) }),
-    fetch(`${FB_URL}/ganData/calEvents.json`, { method: 'PUT', body: JSON.stringify(calEvents) }),
-    fetch(`${FB_URL}/ganData/reminders.json`, { method: 'PUT', body: JSON.stringify(reminders) }),
-    fetch(`${FB_URL}/ganData/monthlyArchive.json`, { method: 'PUT', body: JSON.stringify(monthlyArchive) }),
-    fetch(`${FB_URL}/ganData/children.json`, { method: 'PUT', body: JSON.stringify(CHILDREN) }),
-    fetch(`${FB_URL}/ganData/archivedChildren.json`, { method: 'PUT', body: JSON.stringify(archivedChildren) }),
-    fetch(`${FB_URL}/ganData/devDomains.json`, { method: 'PUT', body: JSON.stringify(devDomains) }),
+    fetch(fbUrl(`/ganData/dailyUpdates.json`), { method: 'PUT', body: JSON.stringify(dailyUpdates) }),
+    fetch(fbUrl(`/ganData/childProgress.json`), { method: 'PUT', body: JSON.stringify(childProgress) }),
+    fetch(fbUrl(`/ganData/teacherNotes.json`), { method: 'PUT', body: JSON.stringify(teacherNotes) }),
+    fetch(fbUrl(`/ganData/months.json`), { method: 'PUT', body: JSON.stringify(MONTHS.map(m => m.activities)) }),
+    fetch(fbUrl(`/ganData/meeting.json`), { method: 'PUT', body: JSON.stringify(meetingData) }),
+    fetch(fbUrl(`/ganData/parents.json`), { method: 'PUT', body: JSON.stringify(parentsData) }),
+    fetch(fbUrl(`/ganData/calEvents.json`), { method: 'PUT', body: JSON.stringify(calEvents) }),
+    fetch(fbUrl(`/ganData/reminders.json`), { method: 'PUT', body: JSON.stringify(reminders) }),
+    fetch(fbUrl(`/ganData/monthlyArchive.json`), { method: 'PUT', body: JSON.stringify(monthlyArchive) }),
+    fetch(fbUrl(`/ganData/children.json`), { method: 'PUT', body: JSON.stringify(CHILDREN) }),
+    fetch(fbUrl(`/ganData/archivedChildren.json`), { method: 'PUT', body: JSON.stringify(archivedChildren) }),
+    fetch(fbUrl(`/ganData/devDomains.json`), { method: 'PUT', body: JSON.stringify(devDomains) }),
   ];
   try { await Promise.all(saves); } catch(e) { console.error('שמירה נכשלה', e); }
 }
 
 async function saveSection(section, data) {
   try {
-    await fetch(`${FB_URL}/ganData/${section}.json`, {
+    await fetch(fbUrl(`/ganData/${section}.json`), {
       method: 'PUT',
       body: JSON.stringify(data),
     });
@@ -3569,7 +3576,7 @@ async function saveSection(section, data) {
 
 async function loadAll() {
   try {
-    const res = await fetch(`${FB_URL}/ganData.json`);
+    const res = await fetch(fbUrl(`/ganData.json`));
     const data = await res.json();
     if (!data) return;
     if (data.attendance && typeof data.attendance === 'object' && !Array.isArray(data.attendance)) attendance = data.attendance;
@@ -3676,7 +3683,7 @@ function runChildrenMigrationV2() {
 
   CHILDREN.sort((a, b) => a.name.localeCompare(b.name, 'he'));
   saveAll();
-  fetch(`${FB_URL}/ganData/childrenV2Migrated.json`, { method: 'PUT', body: JSON.stringify(true) });
+  fetch(fbUrl(`/ganData/childrenV2Migrated.json`), { method: 'PUT', body: JSON.stringify(true) });
 }
 
 // ════════ LOGIN ════════
@@ -3711,9 +3718,17 @@ function signInWithGoogle() {
 }
 
 function checkLoginStatus() {
-  // כניסה חופשית - ללא סיסמה
   const loginScreen = document.getElementById('login-screen');
-  if (loginScreen) loginScreen.style.display = 'none';
+  if (!loginScreen) return;
+  try {
+    const key = 'gan_login_expires';
+    const exp = localStorage.getItem(key) || sessionStorage.getItem(key);
+    if (exp && Date.now() < parseInt(exp)) {
+      loginScreen.style.display = 'none';
+      return;
+    }
+  } catch(e) {}
+  loginScreen.style.display = 'flex';
 }
 
 const USER_PASSWORDS = {
@@ -3764,6 +3779,12 @@ function checkLogin() {}
 async function init() {
   checkLoginStatus();
   showLoadingOverlay();
+  try {
+    await firebase.auth().signInAnonymously();
+    FB_TOKEN = await firebase.auth().currentUser.getIdToken();
+  } catch (e) {
+    console.error('התחברות אנונימית ל-Firebase נכשלה', e);
+  }
   await loadAll();
   hideLoadingOverlay();
   setTodayDate();
@@ -3771,6 +3792,14 @@ async function init() {
   renderMonths();
   updateHomeSummary();
   startRealtimeSync();
+
+  // רענון תור ההתחברות כל 50 דקות, כדי שהסנכרון בזמן אמת לא ינותק אחרי שעה
+  setInterval(async () => {
+    try {
+      FB_TOKEN = await firebase.auth().currentUser.getIdToken(true);
+      startRealtimeSync();
+    } catch (e) { console.error('רענון token נכשל', e); }
+  }, 50 * 60 * 1000);
 }
 init();
 
