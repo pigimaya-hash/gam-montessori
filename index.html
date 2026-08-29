@@ -367,6 +367,12 @@ firebase.initializeApp({
     display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 9px;
     border-radius: 20px; background: #FFF0EC; color: var(--terracotta); margin-right: 6px;
   }
+  .edit-stamp {
+    display: inline-flex; align-items: center; justify-content: center;
+    border-radius: 50%; color: white; font-weight: 700;
+    font-family: 'Heebo', sans-serif; flex-shrink: 0; cursor: default;
+    box-shadow: 0 1px 3px rgba(0,0,0,.2); vertical-align: middle;
+  }
 
   /* Annual plan */
   .months-list { display: flex; flex-direction: column; gap: 14px; }
@@ -1095,7 +1101,8 @@ firebase.initializeApp({
     <div class="topbar-title" id="dev-domains-detail-title">תחומי התפתחות</div>
   </div>
   <div class="content">
-    <div id="dev-domains-birthdate" style="font-size:13px;color:var(--sky);font-weight:600;margin:-8px 0 14px"></div>
+    <div id="dev-domains-birthdate" style="font-size:13px;color:var(--sky);font-weight:600;margin:-8px 0 4px"></div>
+    <div id="dev-domains-last-stamp" style="font-size:12px;color:var(--light-text);margin:0 0 14px;display:flex;align-items:center;gap:6px"></div>
     <div style="margin-bottom:14px">
       <div class="field-label">חודש / תקופה</div>
       <input type="text" class="text-input" id="dev-domains-period" placeholder="לדוגמה: אוגוסט 2026" style="width:100%">
@@ -1136,7 +1143,10 @@ firebase.initializeApp({
 
     <!-- Previous summary -->
     <div class="meeting-section">
-      <div class="meeting-section-title">📝 סיכום ישיבה קודמת</div>
+      <div class="meeting-section-title" style="display:flex;align-items:center;justify-content:space-between">
+        <span>📝 סיכום ישיבה קודמת</span>
+        <span id="meeting-summary-stamp"></span>
+      </div>
       <textarea class="meeting-textarea" id="prev-summary" placeholder="מה סוכם בישיבה הקודמת..." onchange="saveSummary()"></textarea>
     </div>
 
@@ -1182,7 +1192,10 @@ firebase.initializeApp({
 
     <!-- Text update -->
     <div class="parents-section">
-      <div class="parents-section-title">✍️ תוכן העדכון</div>
+      <div class="parents-section-title" style="display:flex;align-items:center;justify-content:space-between">
+        <span>✍️ תוכן העדכון</span>
+        <span id="parents-stamp"></span>
+      </div>
       <textarea class="parents-textarea" id="parents-text"
         placeholder="שלום משפחות יקרות 🌿&#10;&#10;השבוע בגן..." oninput="autoSaveParents()"></textarea>
     </div>
@@ -1858,6 +1871,7 @@ const MONTHS = [
 let attendance = {};        // dateKey -> {childId -> true/false}
 let dailyUpdates = {};      // dateKey -> {childId -> {mood,food,sleep,sleepTime,notes}}
 let childProgress = {};     // childId -> {exerciseId -> 0/1/2/3}
+let progressStamps = {};    // childId -> {exerciseId -> stamp}
 let devDomains = {};        // childId -> {period, summary, domains:{domainId:{status,note}}}
 
 const DEV_DOMAINS = [
@@ -1872,6 +1886,7 @@ const DEV_DOMAINS = [
 ];
 let monthlyArchive = {};    // child_id -> [{month, text}]
 let teacherNotes = {};      // exerciseId -> string
+let noteStamps = {};        // exerciseId -> stamp
 let currentChildId = null;
 let currentMonthIdx = null;
 let currentMood = null;
@@ -1908,6 +1923,8 @@ function navigate(screen) {
     renderMeetingArchive();
     if (meetingData.date) document.getElementById('meeting-date-input').value = meetingData.date;
     if (meetingData.summary) document.getElementById('prev-summary').value = meetingData.summary;
+    const summaryStampSlot = document.getElementById('meeting-summary-stamp');
+    if (summaryStampSlot) summaryStampSlot.innerHTML = meetingData.summaryStamp ? stampHTML(meetingData.summaryStamp, 16) : '';
   } else if (screen === 'parents') {
     document.getElementById('screen-parents').classList.add('active');
     renderParentsScreen();
@@ -1964,8 +1981,9 @@ function renderAttendance() {
   const days = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
   const months = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
   const dateDiv = document.createElement('div');
-  dateDiv.style.cssText = 'font-size:13px;color:var(--light-text);margin-bottom:12px;text-align:center;font-weight:600';
-  dateDiv.textContent = `יום ${days[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]}`;
+  dateDiv.style.cssText = 'font-size:13px;color:var(--light-text);margin-bottom:12px;text-align:center;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px';
+  const todayStamp = todayAtt.__stamp;
+  dateDiv.innerHTML = `<span>יום ${days[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]}</span>${todayStamp ? stampHTML(todayStamp, 18) : ''}`;
   list.appendChild(dateDiv);
   CHILDREN.forEach(child => {
     const present = todayAtt[child.id] || false;
@@ -1989,6 +2007,7 @@ function toggleAttendance(id) {
   const key = todayKey();
   if (!attendance[key]) attendance[key] = {};
   attendance[key][id] = !attendance[key][id];
+  attendance[key].__stamp = makeStamp();
   // שמור רק את נוכחות היום
   fetch(fbUrl(`/ganData/attendance/${key}.json`), {
     method: 'PUT',
@@ -1999,7 +2018,7 @@ function toggleAttendance(id) {
 
 function updateAttendanceStats() {
   const todayAtt = getTodayAttendance();
-  const present = Object.values(todayAtt).filter(Boolean).length;
+  const present = Object.entries(todayAtt).filter(([k,v]) => k !== '__stamp' && v === true).length;
   document.getElementById('att-present').textContent = present;
   document.getElementById('att-absent').textContent = CHILDREN.length - present;
   document.getElementById('att-total').textContent = CHILDREN.length;
@@ -2018,7 +2037,7 @@ function renderAttendanceHistory() {
     const isDateKey = /^\d{4}-\d{2}-\d{2}$/.test(k);
     if (!isDateKey) return false;
     const dayData = attendance[k] || {};
-    return Object.values(dayData).some(v => v === true);
+    return Object.entries(dayData).some(([ck,v]) => ck !== '__stamp' && v === true);
   }).sort().reverse();
 
   if (!keys.length) {
@@ -2030,7 +2049,7 @@ function renderAttendanceHistory() {
     const [y,m,d] = key.split('-');
     const dateLabel = `${parseInt(d)} ${months[parseInt(m)-1]} ${y}`;
     const dayAtt = attendance[key] || {};
-    const presentCount = Object.values(dayAtt).filter(Boolean).length;
+    const presentCount = Object.entries(dayAtt).filter(([ck,v]) => ck !== '__stamp' && v === true).length;
     const presentNames = CHILDREN.filter(c => dayAtt[c.id]).map(c => c.name);
     const absentNames = CHILDREN.filter(c => !dayAtt[c.id]).map(c => c.name);
 
@@ -2038,7 +2057,7 @@ function renderAttendanceHistory() {
     el.style.cssText = 'background:var(--card-bg);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:8px;box-shadow:var(--shadow);cursor:pointer';
     el.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:center">
-        <div style="font-size:14px;font-weight:700">${dateLabel}</div>
+        <div style="font-size:14px;font-weight:700;display:flex;align-items:center;gap:8px">${dateLabel}${dayAtt.__stamp ? stampHTML(dayAtt.__stamp, 16) : ''}</div>
         <div style="font-size:13px;color:var(--sage);font-weight:600">✓ ${presentCount} נוכחים</div>
       </div>
       <div id="hist-detail-${key}" style="display:none;margin-top:10px">
@@ -2078,6 +2097,7 @@ function renderUpdates() {
       </div>
       <div style="display:flex;gap:8px;align-items:center">
         ${histCount > 0 ? `<button onclick="event.stopPropagation();openChildHistory(${child.id})" style="background:var(--sand);border:none;border-radius:10px;padding:6px 10px;font-size:11px;font-weight:600;color:var(--mid);cursor:pointer;font-family:'Heebo',sans-serif">📋 ${histCount}</button>` : ''}
+        ${hasMood && upd.stamp ? stampHTML(upd.stamp, 20) : ''}
         <span style="font-size:20px;">${hasMood ? '✅' : '➕'}</span>
       </div>
     `;
@@ -2117,7 +2137,7 @@ function openChildHistory(childId) {
     const el = document.createElement('div');
     el.style.cssText = 'background:var(--card-bg);border-radius:var(--radius);padding:16px;margin-bottom:10px;box-shadow:var(--shadow)';
     el.innerHTML = `
-      <div style="font-size:14px;font-weight:700;color:var(--dark);margin-bottom:10px">📅 ${dateLabel}</div>
+      <div style="font-size:14px;font-weight:700;color:var(--dark);margin-bottom:10px;display:flex;align-items:center;gap:8px">📅 ${dateLabel}${upd.stamp ? stampHTML(upd.stamp, 18) : ''}</div>
       <div style="display:flex;flex-wrap:wrap;gap:8px">
         ${upd.mood ? `<div style="background:var(--sand);border-radius:10px;padding:8px 12px;font-size:13px">${moodEmojis[upd.mood]} ${moodLabels[upd.mood]}</div>` : ''}
         ${upd.food ? `<div style="background:var(--sand);border-radius:10px;padding:8px 12px;font-size:13px">🍽️ ${foodLabels[upd.food]||upd.food}</div>` : ''}
@@ -2199,6 +2219,7 @@ function saveUpdate() {
       mood: currentMood, food: currentFood, sleep: currentSleep,
       sleepTime: document.getElementById('sleep-duration').value,
       notes: document.getElementById('update-notes').value,
+      stamp: makeStamp(),
     };
     saveAll();
     document.getElementById('update-overlay').classList.remove('open');
@@ -2287,6 +2308,7 @@ function renderDevDomainsChildList() {
         <div class="child-name">${child.name}</div>
         <div class="child-age">${assessedCount ? `${assessedCount}/${DEV_DOMAINS.length} תחומים מולאו` : 'טרם מולא'}${flagged ? ` · <span class="dev-flag-badge">⚠️ ${flagged} דורש מעקב</span>` : ''}</div>
       </div>
+      ${rec && rec.stamp ? stampHTML(rec.stamp, 20) : ''}
       <span style="font-size:18px;color:var(--light-text)">‹</span>
     `;
     card.onclick = () => openDevDomainsChild(child);
@@ -2300,6 +2322,8 @@ function openDevDomainsChild(child) {
   const rec = devDomains[child.id];
   document.getElementById('dev-domains-detail-title').textContent = `🧩 ${child.name}`;
   document.getElementById('dev-domains-birthdate').textContent = child.birthDate ? `🎂 נולד/ה: ${child.birthDate}` : '';
+  const stampSlot = document.getElementById('dev-domains-last-stamp');
+  if (stampSlot) stampSlot.innerHTML = rec.stamp ? `עודכן לאחרונה ע"י ${stampHTML(rec.stamp, 18)}` : '';
   document.getElementById('dev-domains-period').value = rec.period || '';
   document.getElementById('dev-domains-summary').value = rec.summary || '';
   renderDevDomainsMatrix(rec);
@@ -2347,6 +2371,7 @@ function saveDevDomains() {
   const rec = devDomains[currentDevChild.id];
   rec.period = document.getElementById('dev-domains-period').value;
   rec.summary = document.getElementById('dev-domains-summary').value;
+  rec.stamp = makeStamp();
   saveAll();
   showToast(`המעקב עבור ${currentDevChild.name} נשמר ✓`);
   navigate('dev-domains');
@@ -2355,6 +2380,7 @@ function saveDevDomains() {
 // ════════ AREA DETAIL ════════
 let currentAreaId = null;
 let currentExId = null;
+let currentExName = null;
 
 function openAreaDetail(areaId) {
   currentAreaId = areaId;
@@ -2384,7 +2410,10 @@ function renderSubfolders(area) {
           </div>
         </div>
         <div class="teacher-notes-box" id="notes-box-${ex.id}" style="display:${note?'block':'none'}">
-          <div class="teacher-notes-label">📌 הכנות והערות מורה</div>
+          <div class="teacher-notes-label" style="display:flex;align-items:center;justify-content:space-between">
+            <span>📌 הכנות והערות מורה</span>
+            <span id="note-stamp-${ex.id}">${noteStamps[ex.id] ? stampHTML(noteStamps[ex.id], 16) : ''}</span>
+          </div>
           <textarea class="teacher-notes-ta" placeholder="למשל: להכין חרוזים, לזכור להדגים קודם..."
             onchange="saveNote('${ex.id}',this.value)">${note}</textarea>
         </div>
@@ -2419,6 +2448,10 @@ function toggleNotes(exId) {
 
 function saveNote(exId, val) {
   teacherNotes[exId] = val;
+  noteStamps[exId] = makeStamp();
+  saveAll();
+  const stampSlot = document.getElementById('note-stamp-' + exId);
+  if (stampSlot) stampSlot.innerHTML = stampHTML(noteStamps[exId], 16);
 }
 
 function addExercise(areaId, fi) {
@@ -2434,33 +2467,33 @@ function addExercise(areaId, fi) {
 // ════════ CHILD PROGRESS SHEET ════════
 
 function markAll(level) {
+  const stamp = makeStamp();
   CHILDREN.forEach(child => {
     if (!childProgress[child.id]) childProgress[child.id] = {};
     childProgress[child.id][currentExId] = level;
+    if (!progressStamps[child.id]) progressStamps[child.id] = {};
+    progressStamps[child.id][currentExId] = stamp;
   });
   saveAll();
-  // re-render all rows
-  const listEl = document.getElementById('progress-children-list');
-  listEl.querySelectorAll('.child-progress-row').forEach((row, i) => {
-    row.querySelectorAll('.cp-btn').forEach((b, bi) => {
-      b.className = 'cp-btn' + (level === bi+1 ? ` s${bi+1}` : '');
-    });
-  });
+  openProgressSheet(currentExId, currentExName);
   showToast(`כל הילדים סומנו ✓`);
 }
 
 function openProgressSheet(exId, exName) {
   currentExId = exId;
+  currentExName = exName;
   document.getElementById('progress-sheet-title').textContent = exName;
   const listEl = document.getElementById('progress-children-list');
   listEl.innerHTML = '';
   CHILDREN.forEach(child => {
     const status = (childProgress[child.id] || {})[exId] || 0;
+    const stamp = (progressStamps[child.id] || {})[exId];
     const row = document.createElement('div');
     row.className = 'child-progress-row';
     row.innerHTML = `
       <div class="cp-avatar" style="background:${child.color}">${child.name.charAt(0)}</div>
       <div class="cp-name">${child.name}</div>
+      ${stamp ? stampHTML(stamp, 18) : ''}
       <div class="cp-status-btns">
         <button class="cp-btn ${status===1?'s1':''}" title="הוצג" onclick="setProgress(${child.id},'${exId}',1,this)">🌱</button>
         <button class="cp-btn ${status===2?'s2':''}" title="מתאמן/ת" onclick="setProgress(${child.id},'${exId}',2,this)">⭐</button>
@@ -2477,6 +2510,8 @@ function setProgress(childId, exId, level, btn) {
   const current = childProgress[childId][exId] || 0;
   // toggle off if same level clicked
   childProgress[childId][exId] = current === level ? 0 : level;
+  if (!progressStamps[childId]) progressStamps[childId] = {};
+  progressStamps[childId][exId] = makeStamp();
   saveAll();
   // re-render the row
   const row = btn.closest('.child-progress-row');
@@ -2484,6 +2519,10 @@ function setProgress(childId, exId, level, btn) {
   row.querySelectorAll('.cp-btn').forEach((b,i) => {
     b.className = 'cp-btn' + (status === i+1 ? ` s${i+1}` : '');
   });
+  const existingStamp = row.querySelector('.edit-stamp');
+  const newStampHTML = stampHTML(progressStamps[childId][exId], 18);
+  if (existingStamp) existingStamp.outerHTML = newStampHTML;
+  else row.querySelector('.cp-name').insertAdjacentHTML('afterend', newStampHTML);
   showToast('נשמר ✓');
 }
 
@@ -2519,6 +2558,7 @@ function renderMonths() {
               ${a.done ? '✓' : ''}
             </div>
             <div class="activity-text ${a.done ? 'done' : ''}">${a.text}</div>
+            ${a.done && a.stamp ? stampHTML(a.stamp, 16) : ''}
           </div>
         `).join('')}
         <button class="add-activity-btn" onclick="openAddActivity(${mi})">+ הוסף פעילות</button>
@@ -2535,10 +2575,12 @@ function toggleMonth(mi) {
 
 function toggleActivity(mi, ai) {
   MONTHS[mi].activities[ai].done = !MONTHS[mi].activities[ai].done;
+  MONTHS[mi].activities[ai].stamp = makeStamp();
   saveAll();
 
   // עדכון נקודתי בלבד — בלי לבנות מחדש את כל הרשימה ובלי לגרום למסך "לקפוץ"
   const done = MONTHS[mi].activities[ai].done;
+  const stamp = MONTHS[mi].activities[ai].stamp;
   const body = document.getElementById(`month-body-${mi}`);
   if (body) {
     const item = body.querySelectorAll('.activity-item')[ai];
@@ -2548,6 +2590,14 @@ function toggleActivity(mi, ai) {
       checkEl.classList.toggle('done', done);
       checkEl.textContent = done ? '✓' : '';
       textEl.classList.toggle('done', done);
+      let stampEl = item.querySelector('.edit-stamp');
+      if (done) {
+        const html = stampHTML(stamp, 16);
+        if (stampEl) stampEl.outerHTML = html;
+        else item.insertAdjacentHTML('beforeend', html);
+      } else if (stampEl) {
+        stampEl.remove();
+      }
     }
   }
   const card = document.getElementById('months-list').children[mi];
@@ -2680,14 +2730,17 @@ function saveMeetingDate() {
 }
 function saveSummary() {
   meetingData.summary = document.getElementById('prev-summary').value;
+  meetingData.summaryStamp = makeStamp();
   saveAll();
+  const slot = document.getElementById('meeting-summary-stamp');
+  if (slot) slot.innerHTML = stampHTML(meetingData.summaryStamp, 16);
 }
 
 function addTopicInline() {
   const input = document.getElementById('topic-input-field');
   const text = input ? input.value.trim() : '';
   if (!text) { if(input) input.focus(); return; }
-  meetingData.topics.push({ text, done: false });
+  meetingData.topics.push({ text, done: false, stamp: makeStamp() });
   if (input) input.value = '';
   saveAll();
   renderTopics();
@@ -2710,6 +2763,7 @@ function renderTopics() {
     item.innerHTML = `
       <div class="topic-check ${topic.done ? 'done' : ''}" onclick="toggleTopic(${i})">${topic.done ? '✓' : ''}</div>
       <div class="topic-text ${topic.done ? 'done' : ''}">${topic.text}</div>
+      ${topic.stamp ? stampHTML(topic.stamp, 16) : ''}
       <button class="topic-delete" onclick="deleteTopic(${i})">✕</button>
     `;
     list.appendChild(item);
@@ -2718,6 +2772,7 @@ function renderTopics() {
 
 function toggleTopic(i) {
   meetingData.topics[i].done = !meetingData.topics[i].done;
+  meetingData.topics[i].stamp = makeStamp();
   saveAll();
   renderTopics();
 }
@@ -2889,6 +2944,7 @@ function renderMonthlyArchive(child) {
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
         <span style="font-size:16px">📄</span>
         <span style="font-size:13px;font-weight:700;color:var(--dark)">${entry.month}</span>
+        ${entry.stamp ? stampHTML(entry.stamp, 16) : ''}
       </div>
       <div style="font-size:12px;color:var(--mid);line-height:1.5">${entry.text.substring(0,120)}...</div>
     `;
@@ -3040,7 +3096,7 @@ function sendMonthlyWhatsappAndSave() {
   const monthLabel = `${monthNames[d.getMonth()]} ${d.getFullYear()}`;
   // הימנע מכפילות באותו חודש
   monthlyArchive[key] = monthlyArchive[key].filter(e => e.month !== monthLabel);
-  monthlyArchive[key].push({ month: monthLabel, text });
+  monthlyArchive[key].push({ month: monthLabel, text, stamp: makeStamp() });
   saveAll();
   renderMonthlyArchive(child);
 
@@ -3072,6 +3128,8 @@ function renderParentsScreen() {
   const entry = parentsData[key] || { text: '', photos: [] };
   document.getElementById('parents-text').value = entry.text || '';
   document.getElementById('parents-photos-link').value = entry.photosLink || '';
+  const slot = document.getElementById('parents-stamp');
+  if (slot) slot.innerHTML = entry.stamp ? stampHTML(entry.stamp, 16) : '';
   renderParentsArchive();
 }
 
@@ -3099,7 +3157,10 @@ function autoSaveParents() {
   if (!parentsData[key]) parentsData[key] = { text: '', photosLink: '' };
   parentsData[key].text = document.getElementById('parents-text').value;
   parentsData[key].photosLink = document.getElementById('parents-photos-link').value;
+  parentsData[key].stamp = makeStamp();
   saveAll();
+  const slot = document.getElementById('parents-stamp');
+  if (slot) slot.innerHTML = stampHTML(parentsData[key].stamp, 16);
 }
 
 function addPhotos(input) {
@@ -3203,6 +3264,7 @@ function renderManageChildren() {
     el.innerHTML = `
       <div style="width:42px;height:42px;border-radius:50%;background:${child.color};display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:18px;flex-shrink:0">${child.name.charAt(0)}</div>
       <div style="flex:1;font-size:16px;font-weight:600">${child.name}</div>
+      ${child.addedStamp ? stampHTML(child.addedStamp, 18) : ''}
       <button onclick="archiveChild(${child.id})" style="background:#FFF0EC;border:none;border-radius:10px;padding:8px 12px;font-size:12px;font-weight:600;color:var(--terracotta);cursor:pointer;font-family:'Heebo',sans-serif">🗄️ העברי לארכיון</button>
     `;
     list.appendChild(el);
@@ -3234,7 +3296,7 @@ function addNewChild() {
   const name = document.getElementById('new-child-name').value.trim();
   if (!name) { showToast('הכניסי שם'); return; }
   const newId = Date.now();
-  CHILDREN.push({ id: newId, name, age: '', color: selectedNewColor });
+  CHILDREN.push({ id: newId, name, age: '', color: selectedNewColor, addedStamp: makeStamp() });
   document.getElementById('new-child-name').value = '';
   saveAll();
   renderManageChildren();
@@ -3248,6 +3310,7 @@ function archiveChild(id) {
   const child = CHILDREN[idx];
   const d = new Date();
   child.leftDate = `${d.getMonth()+1}/${d.getFullYear()}`;
+  child.archivedStamp = makeStamp();
   archivedChildren.push(child);
   CHILDREN.splice(idx, 1);
   saveAll();
@@ -3331,6 +3394,7 @@ function renderCalEventsList() {
         <div>${ev.text}</div>
         ${ev.time ? `<div class="cal-event-time">⏰ ${ev.time}</div>` : ''}
       </div>
+      ${ev.stamp ? stampHTML(ev.stamp, 16) : ''}
       <button class="cal-event-delete" onclick="deleteCalEvent(${i})">✕</button>
     `;
     list.appendChild(el);
@@ -3342,7 +3406,7 @@ function addCalEvent() {
   if (!text || !calSelectedDate) return;
   const time = document.getElementById('cal-new-time').value.trim();
   if (!calEvents[calSelectedDate]) calEvents[calSelectedDate] = [];
-  calEvents[calSelectedDate].push({ text, time });
+  calEvents[calSelectedDate].push({ text, time, stamp: makeStamp() });
   document.getElementById('cal-new-event').value = '';
   document.getElementById('cal-new-time').value = '';
   saveAll();
@@ -3379,7 +3443,7 @@ function addReminder() {
   const date = document.getElementById('rem-date').value;
   const time = document.getElementById('rem-time').value;
   if (!text) { showToast('הכניסי תוכן לתזכורת'); return; }
-  const rem = { id: Date.now(), emoji: selectedRemEmoji, text, date, time };
+  const rem = { id: Date.now(), emoji: selectedRemEmoji, text, date, time, stamp: makeStamp() };
   reminders.push(rem);
   reminders.sort((a,b) => (a.date+a.time) > (b.date+b.time) ? 1 : -1);
   document.getElementById('rem-text').value = '';
@@ -3441,6 +3505,7 @@ function buildReminderCard(r, past=false) {
       <div class="reminder-title">${r.text}</div>
       <div class="reminder-time">${dateStr}${r.time ? ' בשעה '+r.time : ''}${!dateStr && !r.time ? 'ללא תאריך' : ''}</div>
     </div>
+    ${r.stamp ? stampHTML(r.stamp, 16) : ''}
     <button class="reminder-delete" onclick="deleteReminder(${r.id})">🗑️</button>
   `;
   return el;
@@ -3472,6 +3537,53 @@ function scheduleNotification(rem) {
   }, ms);
 }
 
+// ════════ TEACHERS / STAMPS ════════
+const TEACHERS = {
+  'pigimaya@gmail.com':      { name: 'מאיה',    color: '#6B9EB5' },
+  'adar17ben@gmail.com':     { name: 'אדר',     color: '#D98B6B' },
+  'shani4138@gmail.com':     { name: 'שני',     color: '#8FAE7D' },
+  'avital2479@walla.co.il':  { name: 'אביטל',   color: '#C77B9E' },
+  'vlada@zelichenko.com':    { name: 'ולדה',    color: '#D9A441' },
+  'tohamoyal22@gmail.com':   { name: 'טהר',     color: '#7B9EA8' },
+  'ayatmusic12@gmail.com':   { name: 'איה',     color: '#B08BC7' },
+  'gushabella@gmail.com':    { name: 'אולגה',   color: '#A8846B' },
+  'shlomitiam@walla.com':    { name: 'שלומית',  color: '#6BAE8E' },
+  'noiayfat@gmail.com':      { name: 'נויה',    color: '#C78B6B' },
+  'kerenfalach@gmail.com':   { name: 'קרן',     color: '#8B7BC7' },
+};
+
+function getCurrentTeacher() {
+  try {
+    const email = (localStorage.getItem('gan_login_email') || sessionStorage.getItem('gan_login_email') || '').toLowerCase();
+    if (TEACHERS[email]) return TEACHERS[email];
+  } catch(e) {}
+  return { name: 'לא ידוע', color: '#B5B0A8' };
+}
+
+// יוצר אובייקט חותמת (שם + צבע + זמן) לצירוף לכל רשומה שנוצרת/משתנה
+function makeStamp() {
+  const t = getCurrentTeacher();
+  return { name: t.name, color: t.color, at: Date.now() };
+}
+
+function formatStampTime(ts) {
+  if (!ts) return '';
+  const d = new Date(ts);
+  const dd = String(d.getDate()).padStart(2,'0');
+  const mm = String(d.getMonth()+1).padStart(2,'0');
+  const hh = String(d.getHours()).padStart(2,'0');
+  const min = String(d.getMinutes()).padStart(2,'0');
+  return `${dd}/${mm} ${hh}:${min}`;
+}
+
+// מחזיר HTML של עיגול חותמת קטן (להטמעה בתוך כרטיסים/שורות)
+function stampHTML(stamp, size) {
+  if (!stamp || !stamp.name) return '';
+  const s = size || 20;
+  const timeStr = formatStampTime(stamp.at);
+  return `<span class="edit-stamp" style="width:${s}px;height:${s}px;font-size:${Math.round(s*0.5)}px;background:${stamp.color}" title="${stamp.name}${timeStr ? ' · ' + timeStr : ''}">${stamp.name.charAt(0)}</span>`;
+}
+
 // ════════ FIREBASE SYNC ════════
 const FB_URL = 'https://makom-ligdol-a9f7d-default-rtdb.firebaseio.com';
 let FB_TOKEN = null;
@@ -3496,7 +3608,9 @@ function startRealtimeSync() {
       if (data.attendance && typeof data.attendance === 'object' && !Array.isArray(data.attendance)) attendance = data.attendance;
       if (data.dailyUpdates)  dailyUpdates  = data.dailyUpdates;
       if (data.childProgress) childProgress = data.childProgress;
+      if (data.progressStamps) progressStamps = data.progressStamps;
       if (data.teacherNotes)  teacherNotes  = data.teacherNotes;
+      if (data.noteStamps)     noteStamps    = data.noteStamps;
       if (data.meeting) {
         meetingData = data.meeting;
         if (!meetingData.topics) meetingData.topics = [];
@@ -3551,7 +3665,9 @@ async function saveAll() {
   const saves = [
     fetch(fbUrl(`/ganData/dailyUpdates.json`), { method: 'PUT', body: JSON.stringify(dailyUpdates) }),
     fetch(fbUrl(`/ganData/childProgress.json`), { method: 'PUT', body: JSON.stringify(childProgress) }),
+    fetch(fbUrl(`/ganData/progressStamps.json`), { method: 'PUT', body: JSON.stringify(progressStamps) }),
     fetch(fbUrl(`/ganData/teacherNotes.json`), { method: 'PUT', body: JSON.stringify(teacherNotes) }),
+    fetch(fbUrl(`/ganData/noteStamps.json`), { method: 'PUT', body: JSON.stringify(noteStamps) }),
     fetch(fbUrl(`/ganData/months.json`), { method: 'PUT', body: JSON.stringify(MONTHS.map(m => m.activities)) }),
     fetch(fbUrl(`/ganData/meeting.json`), { method: 'PUT', body: JSON.stringify(meetingData) }),
     fetch(fbUrl(`/ganData/parents.json`), { method: 'PUT', body: JSON.stringify(parentsData) }),
@@ -3582,7 +3698,9 @@ async function loadAll() {
     if (data.attendance && typeof data.attendance === 'object' && !Array.isArray(data.attendance)) attendance = data.attendance;
     if (data.dailyUpdates)  dailyUpdates  = data.dailyUpdates;
     if (data.childProgress) childProgress = data.childProgress;
+    if (data.progressStamps) progressStamps = data.progressStamps;
     if (data.teacherNotes)  teacherNotes  = data.teacherNotes;
+    if (data.noteStamps)     noteStamps    = data.noteStamps;
     if (data.months) data.months.forEach((acts, i) => {
       if (MONTHS[i] && acts) {
         // שמור רק פעילויות שנוספו ידנית (לא קיימות בקוד)
@@ -3728,6 +3846,11 @@ function signInWithGoogle() {
     .then(result => {
       const email = result.user.email.toLowerCase();
       if (ALLOWED_EMAILS.includes(email)) {
+        try {
+          const exp = Date.now() + 24 * 60 * 60 * 1000;
+          localStorage.setItem('gan_login_expires', exp);
+          localStorage.setItem('gan_login_email', email);
+        } catch(e) {}
         document.getElementById('login-screen').style.display = 'none';
         document.getElementById('login-error-msg').style.display = 'none';
       } else {
