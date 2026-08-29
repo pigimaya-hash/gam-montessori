@@ -3032,16 +3032,10 @@ ${summary.devFollowUp.length || summary.devInProcess.length || summary.devSummar
 כתוב בגוף ראשון ("שמנו לב", "אנחנו רואים"), בגובה העיניים, ללא ז'רגון, עם חמימות. אל תמנה רשימות — כתוב פסקאות זורמות.`;
 
   try {
-    const _a = 'sk-ant-api03-sY3aFTd', _b = 'dUzEGrkmb2SQgtX7o3lJ', _c = 'OiDDv1LmPpB9UvdyRo1N', _d = 'SgSWT-X5m8NTChCQoXY-F2gT-NhIFNfTMCWT-4g-ORQC-AAA';
-    const apiKey = _a + _b + _c + _d;
-
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
+    const res = await fetch(AI_PROXY_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true',
       },
       body: JSON.stringify({
         model: 'claude-sonnet-5',
@@ -3206,16 +3200,10 @@ ${contributions.length ? contributions.map(c => `- ${c}`).join('\n') : '(אין)
 כתוב/י עדכון של 2-3 פסקאות קצרות: פתיחה חמה ("שלום משפחות יקרות 🌿"), תיאור זורם ומעניין של מה שהתרחש בגן השבוע (משלב בין הפעילויות המתוכננות לדיווחי המדריכות בלי להפריד אותם לרשימה טכנית), וסיום חם. בגוף ראשון רבים ("עשינו", "יצאנו"), בגובה העיניים, ללא ז'רגון מקצועי.`;
 
   try {
-    const _a = 'sk-ant-api03-sY3aFTd', _b = 'dUzEGrkmb2SQgtX7o3lJ', _c = 'OiDDv1LmPpB9UvdyRo1N', _d = 'SgSWT-X5m8NTChCQoXY-F2gT-NhIFNfTMCWT-4g-ORQC-AAA';
-    const apiKey = _a + _b + _c + _d;
-
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
+    const res = await fetch(AI_PROXY_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true',
       },
       body: JSON.stringify({
         model: 'claude-sonnet-5',
@@ -3794,6 +3782,7 @@ function stampHTML(stamp, size) {
 
 // ════════ FIREBASE SYNC ════════
 const FB_URL = 'https://makom-ligdol-a9f7d-default-rtdb.firebaseio.com';
+const AI_PROXY_URL = 'https://gan-ai-proxypigimayaworkersdev.pigimaya.workers.dev/';
 let FB_TOKEN = null;
 function fbUrl(path) {
   return FB_TOKEN ? `${FB_URL}${path}?auth=${FB_TOKEN}` : `${FB_URL}${path}`;
