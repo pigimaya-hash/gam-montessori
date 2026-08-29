@@ -1124,7 +1124,7 @@ firebase.initializeApp({
     <!-- Previous summary -->
     <div class="meeting-section">
       <div class="meeting-section-title" style="display:flex;align-items:center;justify-content:space-between">
-        <span>📝 סיכום ישיבה קודמת</span>
+        <span>📝 סיכום ישיבה</span>
         <span id="meeting-summary-stamp"></span>
       </div>
       <textarea class="meeting-textarea" id="prev-summary" placeholder="מה סוכם בישיבה הקודמת..." onchange="saveSummary()"></textarea>
@@ -2627,9 +2627,11 @@ function archiveMeeting() {
     showToast('אין מה לשמור — הישיבה ריקה');
     return;
   }
-  // נושאים שנדונו (סומנו ✓) הופכים לסיכום
-  const doneTopic = meetingData.topics.filter(t => t.done).map(t => t.text);
-  const autoSummary = doneTopic.length > 0 ? doneTopic.join(' | ') : meetingData.summary;
+  // נושאים שסומנו ✓ + הטקסט החופשי — שניהם ביחד בסיכום הסופי
+  const doneTopics = meetingData.topics.filter(t => t.done).map(t => t.text);
+  const doneTopicsText = doneTopics.length ? doneTopics.join(' | ') : '';
+  const freeText = (meetingData.summary || '').trim();
+  const autoSummary = [doneTopicsText, freeText].filter(Boolean).join('\n\n');
 
   const archived = {
     date: meetingData.date || new Date().toISOString().split('T')[0],
