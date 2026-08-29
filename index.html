@@ -1017,27 +1017,17 @@ firebase.initializeApp({
     <div class="topbar-title">נוכחות ועדכונים</div>
   </div>
   <div class="content">
-    <div class="tabs">
-      <button class="tab active" id="daily-tab-attendance" onclick="switchDailyTab('attendance')">נוכחות</button>
-      <button class="tab" id="daily-tab-updates" onclick="switchDailyTab('updates')">עדכונים יומיים</button>
+    <div class="stats-row">
+      <div class="stat-chip present"><div class="num" id="att-present">0</div><div class="lbl">נוכחים</div></div>
+      <div class="stat-chip absent"><div class="num" id="att-absent">33</div><div class="lbl">נעדרים</div></div>
+      <div class="stat-chip total"><div class="num" id="att-total">33</div><div class="lbl">סה"כ</div></div>
     </div>
-    <div class="tab-content active" id="daily-content-attendance">
-      <div class="stats-row">
-        <div class="stat-chip present"><div class="num" id="att-present">0</div><div class="lbl">נוכחים</div></div>
-        <div class="stat-chip absent"><div class="num" id="att-absent">33</div><div class="lbl">נעדרים</div></div>
-        <div class="stat-chip total"><div class="num" id="att-total">33</div><div class="lbl">סה"כ</div></div>
-      </div>
-      <div class="children-list" id="attendance-list"></div>
+    <div class="children-list" id="daily-list"></div>
 
-      <!-- היסטוריה -->
-      <div style="margin-top:24px">
-        <div style="font-size:15px;font-weight:700;color:var(--dark);margin-bottom:12px">📅 היסטוריית נוכחות</div>
-        <div id="attendance-history"></div>
-      </div>
-    </div>
-    <div class="tab-content" id="daily-content-updates">
-      <p style="font-size:14px;color:var(--light-text);margin-bottom:14px;">לחץ/י על ילד כדי להזין עדכון • לחיצה ארוכה להיסטוריה</p>
-      <div class="children-list" id="updates-list"></div>
+    <!-- היסטוריה -->
+    <div style="margin-top:24px">
+      <div style="font-size:15px;font-weight:700;color:var(--dark);margin-bottom:12px">📅 היסטוריית נוכחות</div>
+      <div id="attendance-history"></div>
     </div>
   </div>
 </div>
@@ -1891,8 +1881,7 @@ function navigate(screen) {
   } else if (screen === 'daily') {
     document.getElementById('screen-daily').classList.add('active');
     document.getElementById('nav-daily').classList.add('active');
-    renderAttendance();
-    renderUpdates();
+    renderDailyList();
   } else if (screen === 'pedagogic') {
     document.getElementById('screen-pedagogic').classList.add('active');
     document.getElementById('nav-pedagogic').classList.add('active');
@@ -1958,8 +1947,12 @@ function getTodayAttendance() {
 }
 
 function renderAttendance() {
+  renderDailyList();
+}
+
+function renderDailyList() {
   const todayAtt = getTodayAttendance();
-  const list = document.getElementById('attendance-list');
+  const list = document.getElementById('daily-list');
   list.innerHTML = '';
   const d = new Date();
   const days = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
@@ -1969,19 +1962,31 @@ function renderAttendance() {
   const todayStamp = todayAtt.__stamp;
   dateDiv.innerHTML = `<span>יום ${days[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]}</span>${todayStamp ? stampHTML(todayStamp, 18) : ''}`;
   list.appendChild(dateDiv);
+
+  const moodEmojis = {great:'😄',good:'🙂',ok:'😐',sad:'😔',angry:'😤'};
+
   CHILDREN.forEach(child => {
     const present = todayAtt[child.id] || false;
+    const upd = getTodayUpdates()[child.id];
+    const hasMood = upd && upd.mood;
+    const moodEmoji = hasMood ? moodEmojis[upd.mood] : '';
+    const histCount = Object.keys(dailyUpdates).filter(k => dailyUpdates[k][child.id]?.mood).length;
+
     const card = document.createElement('div');
     card.className = `child-card ${present ? 'present' : 'absent'}`;
     card.innerHTML = `
       <div class="child-avatar" style="background:${child.color}">${child.name.charAt(0)}</div>
-      <div class="child-info">
+      <div style="flex:1">
         <div class="child-name">${child.name}</div>
-        <div class="child-age">גיל ${child.age}</div>
+        <div class="child-age">${hasMood ? `מצב רוח: ${moodEmoji}` : 'לא עודכן היום'}</div>
       </div>
-      <span class="status-badge ${present ? 'present' : 'absent'}">${present ? '✓ הגיע/ה' : 'לא הגיע/ה'}</span>
+      <div style="display:flex;gap:8px;align-items:center">
+        ${histCount > 0 ? `<button onclick="event.stopPropagation();openChildHistory(${child.id})" style="background:var(--sand);border:none;border-radius:10px;padding:6px 10px;font-size:11px;font-weight:600;color:var(--mid);cursor:pointer;font-family:'Heebo',sans-serif">📋 ${histCount}</button>` : ''}
+        <button class="status-badge ${present ? 'present' : 'absent'}" onclick="event.stopPropagation();toggleAttendance(${child.id})" style="border:none;cursor:pointer;font-family:'Heebo',sans-serif">${present ? '✓ הגיע/ה' : 'לא הגיע/ה'}</button>
+        ${hasMood && upd.stamp ? stampHTML(upd.stamp, 18) : ''}
+        <button onclick="event.stopPropagation();openUpdateSheet(${child.id})" style="background:none;border:none;cursor:pointer;font-size:20px;padding:0">${hasMood ? '✅' : '➕'}</button>
+      </div>
     `;
-    card.onclick = () => toggleAttendance(child.id);
     list.appendChild(card);
   });
   updateAttendanceStats();
@@ -2059,35 +2064,7 @@ function renderAttendanceHistory() {
 
 // ════════ UPDATES ════════
 function renderUpdates() {
-  const list = document.getElementById('updates-list');
-  list.innerHTML = '';
-  CHILDREN.forEach(child => {
-    const upd = getTodayUpdates()[child.id];
-    const card = document.createElement('div');
-    card.className = 'child-card';
-    card.style.cursor = 'pointer';
-    const hasMood = upd && upd.mood;
-    const moodEmojis = {great:'😄',good:'🙂',ok:'😐',sad:'😔',angry:'😤'};
-    const moodEmoji = hasMood ? moodEmojis[upd.mood] : '';
-
-    // ספירת ימים עם עדכון
-    const histCount = Object.keys(dailyUpdates).filter(k => dailyUpdates[k][child.id]?.mood).length;
-
-    card.innerHTML = `
-      <div class="child-avatar" style="background:${child.color}">${child.name.charAt(0)}</div>
-      <div style="flex:1">
-        <div class="child-name">${child.name}</div>
-        <div class="child-age">${hasMood ? `מצב רוח: ${moodEmoji}` : 'לא עודכן היום'}</div>
-      </div>
-      <div style="display:flex;gap:8px;align-items:center">
-        ${histCount > 0 ? `<button onclick="event.stopPropagation();openChildHistory(${child.id})" style="background:var(--sand);border:none;border-radius:10px;padding:6px 10px;font-size:11px;font-weight:600;color:var(--mid);cursor:pointer;font-family:'Heebo',sans-serif">📋 ${histCount}</button>` : ''}
-        ${hasMood && upd.stamp ? stampHTML(upd.stamp, 20) : ''}
-        <span style="font-size:20px;">${hasMood ? '✅' : '➕'}</span>
-      </div>
-    `;
-    card.onclick = () => openUpdateSheet(child.id);
-    list.appendChild(card);
-  });
+  renderDailyList();
 }
 
 function openChildHistory(childId) {
@@ -2632,12 +2609,6 @@ function switchTab(tab) {
   }
 }
 
-function switchDailyTab(tab) {
-  document.getElementById('daily-tab-attendance').classList.toggle('active', tab === 'attendance');
-  document.getElementById('daily-tab-updates').classList.toggle('active', tab === 'updates');
-  document.getElementById('daily-content-attendance').classList.toggle('active', tab === 'attendance');
-  document.getElementById('daily-content-updates').classList.toggle('active', tab === 'updates');
-}
 
 // ════════ TOAST ════════
 function showToast(msg) {
@@ -3628,7 +3599,7 @@ function startRealtimeSync() {
       const active = document.querySelector('.screen.active');
       if (!active) return;
       const id = active.id;
-      if (id === 'screen-daily') { renderAttendance(); renderUpdates(); }
+      if (id === 'screen-daily') renderDailyList();
       if (id === 'screen-pedagogic') {
         // שמירת החודש הפתוח לפני הרענון, כדי שעדכון חי לא יסגור אותו
         const monthsList = document.getElementById('months-list');
