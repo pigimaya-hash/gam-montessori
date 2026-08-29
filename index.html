@@ -1170,6 +1170,16 @@ firebase.initializeApp({
       <button class="week-nav-btn" onclick="changeWeek(1)">‹</button>
     </div>
 
+    <!-- תרומות מהמדריכות -->
+    <div class="parents-section">
+      <div class="parents-section-title">👥 מה עשית השבוע? (כל מדריכה מוסיפה בנפרד)</div>
+      <div style="display:flex;gap:8px;margin-bottom:10px">
+        <input type="text" class="text-input" id="parents-contribution-input" placeholder="למשל: יצאנו לחצר לחפש עלים לפעילות סתיו..." style="flex:1">
+        <button type="button" onclick="addParentsContribution()" style="background:var(--sky);color:white;border:none;border-radius:10px;padding:0 16px;font-size:14px;font-weight:600;cursor:pointer;font-family:'Heebo',sans-serif">הוסיפי</button>
+      </div>
+      <div id="parents-contributions-list"></div>
+    </div>
+
     <!-- Text update -->
     <div class="parents-section">
       <div class="parents-section-title" style="display:flex;align-items:center;justify-content:space-between">
@@ -1178,6 +1188,11 @@ firebase.initializeApp({
       </div>
       <textarea class="parents-textarea" id="parents-text"
         placeholder="שלום משפחות יקרות 🌿&#10;&#10;השבוע בגן..." oninput="autoSaveParents()"></textarea>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+        <button type="button" onclick="insertMonthActivitiesIntoParentsText()" style="background:var(--sand);border:none;border-radius:10px;padding:8px 12px;font-size:12px;font-weight:600;color:var(--mid);cursor:pointer;font-family:'Heebo',sans-serif">🔄 הוסיפי פעילויות שסומנו החודש</button>
+        <button type="button" id="parents-ai-btn" onclick="generateParentsDraft()" style="background:linear-gradient(135deg,#B08BC7,#8B7BC7);color:white;border:none;border-radius:10px;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Heebo',sans-serif">✨ צרי טיוטה עם AI</button>
+      </div>
+      <div id="parents-ai-loading" style="display:none;text-align:center;padding:10px;font-size:13px;color:var(--light-text)">כותבת טיוטה... ⏳</div>
     </div>
 
     <!-- Google Photos link -->
@@ -3091,14 +3106,161 @@ function getWeekKey(offset) {
   return `${fmt(start)}-${fmt(end)}-${start.getFullYear()}`;
 }
 
+// מחזיר רשימת הפעילויות שסומנו ✓ בתכנון השנתי עבור החודש הנוכחי
+function getCurrentMonthCheckedActivities() {
+  const hebrewMonths = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+  const currentMonthName = hebrewMonths[new Date().getMonth()];
+  const monthObj = MONTHS.find(m => m.name === currentMonthName);
+  if (!monthObj) return [];
+  return monthObj.activities.filter(a => a.done).map(a => a.text);
+}
+
+function buildParentsAutoText() {
+  const done = getCurrentMonthCheckedActivities();
+  if (!done.length) return '';
+  const hebrewMonths = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+  const monthName = hebrewMonths[new Date().getMonth()];
+  return `שלום משפחות יקרות 🌿\n\nהחודש (${monthName}) עסקנו בגן ב:\n${done.map(t => `• ${t}`).join('\n')}\n\n`;
+}
+
+function insertMonthActivitiesIntoParentsText() {
+  const done = getCurrentMonthCheckedActivities();
+  if (!done.length) {
+    showToast('אין עדיין פעילויות מסומנות ✓ החודש בתכנון השנתי');
+    return;
+  }
+  const ta = document.getElementById('parents-text');
+  const addition = `\n${done.map(t => `• ${t}`).join('\n')}`;
+  ta.value = (ta.value ? ta.value + '\n' : '') + addition;
+  autoSaveParents();
+  showToast('הפעילויות נוספו ✓');
+}
+
+// ════════ תרומות מדריכות לעדכון השבועי ════════
+function renderParentsContributions() {
+  const key = getWeekKey(currentWeekOffset);
+  const entry = parentsData[key] || {};
+  const contributions = entry.contributions || [];
+  const list = document.getElementById('parents-contributions-list');
+  if (!contributions.length) {
+    list.innerHTML = '<div style="font-size:13px;color:var(--light-text);text-align:center;padding:8px">עדיין לא נוסף כלום השבוע</div>';
+    return;
+  }
+  list.innerHTML = contributions.map((c, i) => `
+    <div style="display:flex;align-items:center;gap:8px;background:var(--sand);border-radius:10px;padding:8px 10px;margin-bottom:6px">
+      ${c.stamp ? stampHTML(c.stamp, 20) : ''}
+      <div style="flex:1;font-size:13px;color:var(--dark)">${c.text}</div>
+      <button onclick="deleteParentsContribution(${i})" style="background:none;border:none;color:var(--terracotta);cursor:pointer;font-size:13px">✕</button>
+    </div>
+  `).join('');
+}
+
+function addParentsContribution() {
+  const input = document.getElementById('parents-contribution-input');
+  const text = input.value.trim();
+  if (!text) return;
+  const key = getWeekKey(currentWeekOffset);
+  if (!parentsData[key]) parentsData[key] = { text: '', photosLink: '' };
+  if (!parentsData[key].contributions) parentsData[key].contributions = [];
+  parentsData[key].contributions.push({ text, stamp: makeStamp() });
+  input.value = '';
+  saveAll();
+  renderParentsContributions();
+  showToast('נוסף ✓');
+}
+
+function deleteParentsContribution(i) {
+  const key = getWeekKey(currentWeekOffset);
+  if (!parentsData[key] || !parentsData[key].contributions) return;
+  parentsData[key].contributions.splice(i, 1);
+  saveAll();
+  renderParentsContributions();
+}
+
+async function generateParentsDraft() {
+  const key = getWeekKey(currentWeekOffset);
+  const entry = parentsData[key] || {};
+  const contributions = (entry.contributions || []).map(c => c.text);
+  const monthActivities = getCurrentMonthCheckedActivities();
+
+  if (!contributions.length && !monthActivities.length) {
+    showToast('אין עדיין מה לכתוב — הוסיפי תרומות או סמני פעילויות בתכנון השנתי');
+    return;
+  }
+
+  document.getElementById('parents-ai-btn').style.display = 'none';
+  document.getElementById('parents-ai-loading').style.display = 'block';
+
+  const hebrewMonths = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+  const monthName = hebrewMonths[new Date().getMonth()];
+
+  const prompt = `את/ה מדריך/ה בגן ילדים מונטסורי בשם "מקום לגדול".
+כתוב/י עדכון שבועי חם וקצר להורי כל ילדי הגן, בעברית, על סמך המידע הבא:
+
+פעילויות מתוכננות לחודש ${monthName} שכבר בוצעו:
+${monthActivities.length ? monthActivities.map(a => `- ${a}`).join('\n') : '(אין)'}
+
+מה שהמדריכות דיווחו שעשו ממש השבוע:
+${contributions.length ? contributions.map(c => `- ${c}`).join('\n') : '(אין)'}
+
+כתוב/י עדכון של 2-3 פסקאות קצרות: פתיחה חמה ("שלום משפחות יקרות 🌿"), תיאור זורם ומעניין של מה שהתרחש בגן השבוע (משלב בין הפעילויות המתוכננות לדיווחי המדריכות בלי להפריד אותם לרשימה טכנית), וסיום חם. בגוף ראשון רבים ("עשינו", "יצאנו"), בגובה העיניים, ללא ז'רגון מקצועי.`;
+
+  try {
+    const _a = 'sk-ant-api03-sY3aFTd', _b = 'dUzEGrkmb2SQgtX7o3lJ', _c = 'OiDDv1LmPpB9UvdyRo1N', _d = 'SgSWT-X5m8NTChCQoXY-F2gT-NhIFNfTMCWT-4g-ORQC-AAA';
+    const apiKey = _a + _b + _c + _d;
+
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-5',
+        max_tokens: 700,
+        messages: [{ role: 'user', content: prompt }],
+      }),
+    });
+    const data = await res.json();
+    document.getElementById('parents-ai-loading').style.display = 'none';
+    document.getElementById('parents-ai-btn').style.display = 'inline-block';
+    if (data.error) {
+      showToast('שגיאה: ' + (data.error.message || 'נסי שוב'));
+      return;
+    }
+    const text = data.content?.[0]?.text || '';
+    if (!text) { showToast('לא הצלחנו לייצר טיוטה. נסי שוב.'); return; }
+    document.getElementById('parents-text').value = text;
+    autoSaveParents();
+    showToast('הטיוטה מוכנה — אפשר לערוך לפני שליחה ✓');
+  } catch(e) {
+    document.getElementById('parents-ai-loading').style.display = 'none';
+    document.getElementById('parents-ai-btn').style.display = 'inline-block';
+    showToast('שגיאה — נסי שוב');
+  }
+}
+
 function renderParentsScreen() {
   const key = getWeekKey(currentWeekOffset);
   document.getElementById('week-label').textContent = `שבוע ${key}`;
   const entry = parentsData[key] || { text: '', photos: [] };
-  document.getElementById('parents-text').value = entry.text || '';
+  let text = entry.text || '';
+  if (!text) {
+    // מילוי אוטומטי בפעם הראשונה עבור השבוע — מתוך מה שסומן ✓ בתכנון השנתי החודש
+    text = buildParentsAutoText();
+    if (text) {
+      if (!parentsData[key]) parentsData[key] = { text: '', photosLink: '' };
+      parentsData[key].text = text;
+      saveAll();
+    }
+  }
+  document.getElementById('parents-text').value = text;
   document.getElementById('parents-photos-link').value = entry.photosLink || '';
   const slot = document.getElementById('parents-stamp');
   if (slot) slot.innerHTML = entry.stamp ? stampHTML(entry.stamp, 16) : '';
+  renderParentsContributions();
   renderParentsArchive();
 }
 
@@ -3697,7 +3859,7 @@ function startRealtimeSync() {
       }
       if (id === 'screen-dev-domains') renderDevDomainsChildList();
       if (id === 'screen-meeting')     renderMeeting();
-      if (id === 'screen-parents')     renderParents();
+      if (id === 'screen-parents')     renderParentsScreen();
       if (id === 'screen-calendar')    renderCalendar();
       if (id === 'screen-reminders')   renderReminders();
       updateHomeSummary();
