@@ -1278,6 +1278,10 @@ firebase.initializeApp({
       <div class="reminder-form-row">
         <input class="reminder-text-input" type="text" id="new-child-name" placeholder="שם הילד/ה...">
       </div>
+      <div style="display:flex;gap:8px;margin:10px 0">
+        <button type="button" id="new-child-gender-m" class="dev-status-btn" style="flex:1" onclick="selectedNewGender='m';renderManageChildren()">♂ בן</button>
+        <button type="button" id="new-child-gender-f" class="dev-status-btn" style="flex:1" onclick="selectedNewGender='f';renderManageChildren()">♀ בת</button>
+      </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0" id="color-picker-row">
       </div>
       <button class="save-btn" onclick="addNewChild()">הוסיפי ילד/ה</button>
@@ -3208,8 +3212,18 @@ function hideLoadingOverlay() {
 
 // ════════ CHILDREN MANAGEMENT ════════
 let selectedNewColor = COLORS[0];
+let selectedNewGender = 'm';
 
 function renderManageChildren() {
+  // gender picker
+  const genderM = document.getElementById('new-child-gender-m');
+  const genderF = document.getElementById('new-child-gender-f');
+  if (genderM && genderF) {
+    genderM.classList.toggle('selected', selectedNewGender === 'm');
+    genderM.classList.toggle('on-track', selectedNewGender === 'm');
+    genderF.classList.toggle('selected', selectedNewGender === 'f');
+    genderF.classList.toggle('on-track', selectedNewGender === 'f');
+  }
   // color picker
   const picker = document.getElementById('color-picker-row');
   picker.innerHTML = '';
@@ -3239,6 +3253,11 @@ function renderManageChildren() {
           style="flex:1;padding:6px 10px;border:2px solid ${child.birthDate ? '#EEE' : 'var(--terracotta-light)'};border-radius:8px;font-size:13px;font-family:'Heebo',sans-serif;text-align:center;direction:ltr">
         ${!child.birthDate ? '<span style="color:var(--terracotta);font-size:11px;font-weight:600;white-space:nowrap">⚠️ חסר</span>' : ''}
       </div>
+      <div style="margin-top:8px;display:flex;align-items:center;gap:8px">
+        <span style="font-size:12px;color:var(--light-text);white-space:nowrap">מגדר:</span>
+        <button onclick="setChildGender(${child.id},'m')" style="flex:1;padding:6px;border-radius:8px;border:2px solid ${child.gender==='m' ? 'var(--sky)' : '#EEE'};background:${child.gender==='m' ? '#EAF3F7' : 'white'};color:${child.gender==='m' ? 'var(--sky)' : 'var(--mid)'};font-size:12px;font-weight:600;cursor:pointer;font-family:'Heebo',sans-serif">♂ בן</button>
+        <button onclick="setChildGender(${child.id},'f')" style="flex:1;padding:6px;border-radius:8px;border:2px solid ${child.gender==='f' ? '#C77B9E' : '#EEE'};background:${child.gender==='f' ? '#FBEEF3' : 'white'};color:${child.gender==='f' ? '#C77B9E' : 'var(--mid)'};font-size:12px;font-weight:600;cursor:pointer;font-family:'Heebo',sans-serif">♀ בת</button>
+      </div>
     `;
     list.appendChild(el);
   });
@@ -3263,6 +3282,15 @@ function renderManageChildren() {
     `;
     list.appendChild(el);
   });
+}
+
+function setChildGender(id, gender) {
+  const child = CHILDREN.find(c => c.id === id);
+  if (!child) return;
+  child.gender = gender;
+  saveAll();
+  renderManageChildren();
+  showToast(`עודכן ✓`);
 }
 
 function setChildBirthDate(id, value) {
@@ -3290,7 +3318,7 @@ function addNewChild() {
   const name = document.getElementById('new-child-name').value.trim();
   if (!name) { showToast('הכניסי שם'); return; }
   const newId = Date.now();
-  CHILDREN.push({ id: newId, name, age: '', color: selectedNewColor, addedStamp: makeStamp() });
+  CHILDREN.push({ id: newId, name, age: '', color: selectedNewColor, gender: selectedNewGender, addedStamp: makeStamp() });
   document.getElementById('new-child-name').value = '';
   saveAll();
   renderManageChildren();
@@ -3551,7 +3579,9 @@ function calcAge(birthDate) {
 
 function ageLabel(child) {
   const age = calcAge(child.birthDate);
-  return age ? ` (בן/בת ${age})` : '';
+  if (!age) return '';
+  const word = child.gender === 'f' ? 'בת' : child.gender === 'm' ? 'בן' : 'בן/בת';
+  return ` (${word} ${age})`;
 }
 
 const TEACHERS = {
@@ -3744,12 +3774,30 @@ async function loadAll() {
     if (data.devDomains) devDomains = data.devDomains;
     if (!data.childrenV2Migrated) runChildrenMigrationV2();
     if (!data.childrenV3Migrated) runChildrenMigrationV3();
+    if (!data.childrenV4GenderSet) runChildrenMigrationV4();
     CHILDREN.sort((a, b) => a.name.localeCompare(b.name, 'he'));
   } catch(e) { console.error('טעינה נכשלה', e); }
   hideLoadingOverlay();
 }
 
 // ════════ CHILDREN LIST FIX V3 (תיקון כפילות אלי מדר + הוספת עפרי רחמים) ════════
+// ════════ CHILDREN GENDER FIX V4 ════════
+function runChildrenMigrationV4() {
+  const genderMap = {
+    'אדם שרידן':'m', 'איילה גת':'f', 'אילון פנט':'m', 'איתן שרף':'m', 'אלי מדר':'f',
+    'אמה ביצ\'ר':'f', 'אמה דריימן':'f', 'גאיה פנקובסקי כהן':'f', 'גלי גורביץ':'f', 'גפן בן מאור':'f',
+    'דורון אריכא בן דוד':'m', 'דן גולובצ\'ינר':'m', 'דניאל דומבוביץ':'m', 'דניאל קרסולה':'m',
+    'יונתן מיכאל גולדברג הכט':'m', 'ינאי לייבוביץ':'m', 'ירדן מדר':'f', 'ירדן ספקטור':'m',
+    'כרמל אדלר':'m', 'כרמל הלר כהן':'f', 'ליה הכהן':'f', 'מאי נחמה':'f', 'מירון פאליי':'m',
+    'נגה הרנכל חלמר':'f', 'נמרוד אריכא בן דוד':'m', 'סתיו בכר דמרי':'f', 'עלמה וילין':'f',
+    'עפרי רחמים':'f', 'רביד משה':'m', 'רובין פנט':'m', 'רורי גוב':'f', 'רן שפיגלמו':'m',
+    'שיר רוזמן':'f', 'תום ברנדט':'m', 'תמרה סטולר מנקו':'f',
+  };
+  CHILDREN.forEach(c => { if (genderMap[c.name]) c.gender = genderMap[c.name]; });
+  saveAll();
+  fetch(fbUrl('/ganData/childrenV4GenderSet.json'), { method: 'PUT', body: JSON.stringify(true) });
+}
+
 function runChildrenMigrationV3() {
   // הסרת כפילות של אלי מדר (משאירים רק רשומה אחת)
   let seenAliMadar = false;
