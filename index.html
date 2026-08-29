@@ -1977,7 +1977,7 @@ function renderDailyList() {
     card.innerHTML = `
       <div class="child-avatar" style="background:${child.color}">${child.name.charAt(0)}</div>
       <div style="flex:1">
-        <div class="child-name">${child.name}</div>
+        <div class="child-name">${child.name}${ageLabel(child)}</div>
         <div class="child-age">${hasMood ? `מצב רוח: ${moodEmoji}` : 'לא עודכן היום'}</div>
       </div>
       <div style="display:flex;gap:8px;align-items:center">
@@ -2072,7 +2072,7 @@ function openChildHistory(childId) {
   if (!child) return;
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById('screen-child-history').classList.add('active');
-  document.getElementById('child-history-title').textContent = `📋 ${child.name}`;
+  document.getElementById('child-history-title').textContent = `📋 ${child.name}${ageLabel(child)}`;
 
   const months = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
   const moodEmojis = {great:'😄',good:'🙂',ok:'😐',sad:'😔',angry:'😤'};
@@ -2113,7 +2113,7 @@ function openChildHistory(childId) {
 function openUpdateSheet(childId) {
   currentChildId = childId;
   const child = CHILDREN.find(c => c.id === childId);
-  document.getElementById('sheet-child-name').textContent = child.name;
+  document.getElementById('sheet-child-name').textContent = `${child.name}${ageLabel(child)}`;
 
   // reset selections
   document.querySelectorAll('.mood-btn').forEach(b => b.classList.remove('selected'));
@@ -2266,7 +2266,7 @@ function renderDevDomainsChildList() {
     card.innerHTML = `
       <div class="child-avatar" style="background:${child.color}">${child.name.charAt(0)}</div>
       <div style="flex:1">
-        <div class="child-name">${child.name}</div>
+        <div class="child-name">${child.name}${ageLabel(child)}</div>
         <div class="child-age">${assessedCount ? `${assessedCount}/${DEV_DOMAINS.length} תחומים מולאו` : 'טרם מולא'}${flagged ? ` · <span class="dev-flag-badge">⚠️ ${flagged} דורש מעקב</span>` : ''}</div>
       </div>
       ${rec && rec.stamp ? stampHTML(rec.stamp, 20) : ''}
@@ -2281,7 +2281,7 @@ function openDevDomainsChild(child) {
   currentDevChild = child;
   if (!devDomains[child.id]) devDomains[child.id] = { period: '', summary: '', domains: {} };
   const rec = devDomains[child.id];
-  document.getElementById('dev-domains-detail-title').textContent = `🧩 ${child.name}`;
+  document.getElementById('dev-domains-detail-title').textContent = `🧩 ${child.name}${ageLabel(child)}`;
   document.getElementById('dev-domains-birthdate').textContent = child.birthDate ? `🎂 נולד/ה: ${child.birthDate}` : '';
   const stampSlot = document.getElementById('dev-domains-last-stamp');
   if (stampSlot) stampSlot.innerHTML = rec.stamp ? `עודכן לאחרונה ע"י ${stampHTML(rec.stamp, 18)}` : '';
@@ -2453,7 +2453,7 @@ function openProgressSheet(exId, exName) {
     row.className = 'child-progress-row';
     row.innerHTML = `
       <div class="cp-avatar" style="background:${child.color}">${child.name.charAt(0)}</div>
-      <div class="cp-name">${child.name}</div>
+      <div class="cp-name">${child.name}${ageLabel(child)}</div>
       ${stamp ? stampHTML(stamp, 18) : ''}
       <div class="cp-status-btns">
         <button class="cp-btn ${status===1?'s1':''}" title="הוצג" onclick="setProgress(${child.id},'${exId}',1,this)">🌱</button>
@@ -2767,7 +2767,7 @@ function renderMonthlyChildList() {
     card.innerHTML = `
       <div class="child-avatar" style="background:${child.color}">${child.name.charAt(0)}</div>
       <div style="flex:1">
-        <div class="child-name">${child.name}</div>
+        <div class="child-name">${child.name}${ageLabel(child)}</div>
         <div class="child-age">✅ ${masteredCount} שלט/ה · ⭐ ${practicingCount} מתאמן/ת${devFlagged ? ` · <span class="dev-flag-badge">⚠️ ${devFlagged}</span>` : ''}</div>
       </div>
       <span style="font-size:18px;color:var(--light-text)">‹</span>
@@ -2789,7 +2789,7 @@ function openMonthlyChild(child) {
   const av = document.getElementById('monthly-avatar');
   av.style.background = child.color;
   av.textContent = child.name.charAt(0);
-  document.getElementById('monthly-child-name-title').textContent = child.name;
+  document.getElementById('monthly-child-name-title').textContent = `${child.name}${ageLabel(child)}`;
   document.getElementById('monthly-child-birthdate').textContent = child.birthDate ? `🎂 נולד/ה: ${child.birthDate}` : '';
 
   // data summary
@@ -3225,12 +3225,20 @@ function renderManageChildren() {
   list.innerHTML = '';
   CHILDREN.forEach(child => {
     const el = document.createElement('div');
-    el.style.cssText = 'background:var(--card-bg);border-radius:var(--radius);padding:14px 16px;display:flex;align-items:center;gap:12px;box-shadow:var(--shadow)';
+    el.style.cssText = 'background:var(--card-bg);border-radius:var(--radius);padding:14px 16px;box-shadow:var(--shadow)';
     el.innerHTML = `
-      <div style="width:42px;height:42px;border-radius:50%;background:${child.color};display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:18px;flex-shrink:0">${child.name.charAt(0)}</div>
-      <div style="flex:1;font-size:16px;font-weight:600">${child.name}</div>
-      ${child.addedStamp ? stampHTML(child.addedStamp, 18) : ''}
-      <button onclick="archiveChild(${child.id})" style="background:#FFF0EC;border:none;border-radius:10px;padding:8px 12px;font-size:12px;font-weight:600;color:var(--terracotta);cursor:pointer;font-family:'Heebo',sans-serif">🗄️ העברי לארכיון</button>
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="width:42px;height:42px;border-radius:50%;background:${child.color};display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:18px;flex-shrink:0">${child.name.charAt(0)}</div>
+        <div style="flex:1;font-size:16px;font-weight:600">${child.name}${ageLabel(child)}</div>
+        ${child.addedStamp ? stampHTML(child.addedStamp, 18) : ''}
+        <button onclick="archiveChild(${child.id})" style="background:#FFF0EC;border:none;border-radius:10px;padding:8px 12px;font-size:12px;font-weight:600;color:var(--terracotta);cursor:pointer;font-family:'Heebo',sans-serif">🗄️ העברי לארכיון</button>
+      </div>
+      <div style="margin-top:10px;display:flex;align-items:center;gap:8px">
+        <span style="font-size:12px;color:var(--light-text);white-space:nowrap">🎂 תאריך לידה:</span>
+        <input type="text" value="${child.birthDate || ''}" placeholder="יום/חודש/שנה" onchange="setChildBirthDate(${child.id}, this.value)"
+          style="flex:1;padding:6px 10px;border:2px solid ${child.birthDate ? '#EEE' : 'var(--terracotta-light)'};border-radius:8px;font-size:13px;font-family:'Heebo',sans-serif;text-align:center;direction:ltr">
+        ${!child.birthDate ? '<span style="color:var(--terracotta);font-size:11px;font-weight:600;white-space:nowrap">⚠️ חסר</span>' : ''}
+      </div>
     `;
     list.appendChild(el);
   });
@@ -3255,6 +3263,27 @@ function renderManageChildren() {
     `;
     list.appendChild(el);
   });
+}
+
+function setChildBirthDate(id, value) {
+  const child = CHILDREN.find(c => c.id === id);
+  if (!child) return;
+  const v = value.trim();
+  if (v && !/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(v)) {
+    showToast('פורמט תאריך לא תקין — יום/חודש/שנה');
+    renderManageChildren();
+    return;
+  }
+  // נירמול לפורמט DD/MM/YYYY
+  if (v) {
+    const [d,m,y] = v.split('/');
+    child.birthDate = `${d.padStart(2,'0')}/${m.padStart(2,'0')}/${y}`;
+  } else {
+    delete child.birthDate;
+  }
+  saveAll();
+  renderManageChildren();
+  showToast(`תאריך הלידה של ${child.name} עודכן ✓`);
 }
 
 function addNewChild() {
@@ -3503,6 +3532,28 @@ function scheduleNotification(rem) {
 }
 
 // ════════ TEACHERS / STAMPS ════════
+// מחשב גיל מתאריך לידה בפורמט DD/MM/YYYY, מחזיר "שנים.חודשים" (למשל "4.09")
+function calcAge(birthDate) {
+  if (!birthDate) return '';
+  const parts = birthDate.split('/');
+  if (parts.length !== 3) return '';
+  const [dd, mm, yyyy] = parts.map(Number);
+  if (!dd || !mm || !yyyy) return '';
+  const birth = new Date(yyyy, mm - 1, dd);
+  const today = new Date();
+  let years = today.getFullYear() - birth.getFullYear();
+  let months = today.getMonth() - birth.getMonth();
+  if (today.getDate() < birth.getDate()) months--;
+  if (months < 0) { years--; months += 12; }
+  if (years < 0) return '';
+  return `${years}.${String(months).padStart(2,'0')}`;
+}
+
+function ageLabel(child) {
+  const age = calcAge(child.birthDate);
+  return age ? ` (בן/בת ${age})` : '';
+}
+
 const TEACHERS = {
   'pigimaya@gmail.com':      { name: 'מאיה',    color: '#6B9EB5' },
   'adar17ben@gmail.com':     { name: 'אדר',     color: '#D98B6B' },
