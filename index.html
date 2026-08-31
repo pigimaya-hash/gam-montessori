@@ -1990,6 +1990,7 @@ function renderDailyList() {
     const hasMood = upd && upd.mood;
     const moodEmoji = hasMood ? moodEmojis[upd.mood] : '';
     const histCount = Object.keys(dailyUpdates).filter(k => dailyUpdates[k][child.id]?.mood).length;
+    const absentDays = countAbsentDaysThisWeek(child.id);
 
     const card = document.createElement('div');
     card.className = `child-card ${present ? 'present' : 'absent'}`;
@@ -1997,7 +1998,7 @@ function renderDailyList() {
       <div class="child-avatar" style="background:${child.color}">${child.name.charAt(0)}</div>
       <div style="flex:1">
         <div class="child-name">${child.name}${ageLabel(child)}</div>
-        <div class="child-age">${hasMood ? `מצב רוח: ${moodEmoji}` : 'לא עודכן היום'}</div>
+        <div class="child-age">${hasMood ? `מצב רוח: ${moodEmoji}` : 'לא עודכן היום'}${absentDays > 0 ? ` · <span style="color:var(--terracotta);font-weight:600">⚠️ לא הגיע/ה ${absentDays} ימים</span>` : ''}</div>
       </div>
       <div style="display:flex;gap:8px;align-items:center">
         ${histCount > 0 ? `<button onclick="event.stopPropagation();openChildHistory(${child.id})" style="background:var(--sand);border:none;border-radius:10px;padding:6px 10px;font-size:11px;font-weight:600;color:var(--mid);cursor:pointer;font-family:'Heebo',sans-serif">📋 ${histCount}</button>` : ''}
@@ -3542,6 +3543,27 @@ function renderCalendar() {
 function todayKey() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function dateKeyFor(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+// סופר כמה ימים (מיום ראשון של השבוע הנוכחי ועד היום, כולל) ילד סומן "לא הגיע"
+// נספר רק ימים שבהם בכלל נלקחה נוכחות (לא ימים שנשכחו/שישי-שבת)
+function countAbsentDaysThisWeek(childId) {
+  const today = new Date();
+  const sunday = new Date(today);
+  sunday.setDate(today.getDate() - today.getDay()); // getDay(): 0=ראשון
+  let count = 0;
+  for (let d = new Date(sunday); d <= today; d.setDate(d.getDate() + 1)) {
+    const key = dateKeyFor(d);
+    const dayAtt = attendance[key];
+    if (dayAtt && Object.keys(dayAtt).some(k => k !== '__stamp')) {
+      if (dayAtt[childId] !== true) count++;
+    }
+  }
+  return count;
 }
 
 function renderCalEventsList() {
