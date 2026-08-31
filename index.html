@@ -1208,6 +1208,8 @@ firebase.initializeApp({
     <button class="send-whatsapp-btn" onclick="sendToWhatsapp()">
       <span>📤 שלח לווטסאפ</span>
     </button>
+    <button type="button" onclick="markParentsSent()" style="width:100%;margin-top:8px;background:var(--sand);border:none;border-radius:12px;padding:10px;font-size:13px;font-weight:700;color:var(--sage);cursor:pointer;font-family:'Heebo',sans-serif">✅ סמני שזה מה שנשלח בפועל</button>
+    <div id="parents-sent-status" style="text-align:center;font-size:12px;color:var(--sage);margin-top:8px;display:flex;align-items:center;justify-content:center;gap:6px"></div>
 
     <!-- Archive -->
     <div class="parents-section">
@@ -1263,9 +1265,11 @@ firebase.initializeApp({
       <div id="monthly-edit-section" style="display:none">
         <div style="font-size:13px;color:var(--mid);margin-bottom:8px;font-weight:600">✏️ עירכי את הטיוטה לפני השליחה:</div>
         <textarea class="monthly-textarea" id="monthly-draft"></textarea>
-        <button class="send-whatsapp-btn" onclick="sendMonthlyWhatsappAndSave()" style="margin-top:12px">
+        <button class="send-whatsapp-btn" onclick="sendMonthlyWhatsapp()" style="margin-top:12px">
           📤 שלח לווטסאפ של ההורים
         </button>
+        <button type="button" onclick="markMonthlySent()" style="width:100%;margin-top:8px;background:var(--sand);border:none;border-radius:12px;padding:10px;font-size:13px;font-weight:700;color:var(--sage);cursor:pointer;font-family:'Heebo',sans-serif">✅ סמני שזה מה שנשלח בפועל</button>
+        <div id="monthly-sent-status" style="text-align:center;font-size:12px;color:var(--sage);margin-top:8px;display:flex;align-items:center;justify-content:center;gap:6px"></div>
       </div>
 
       <!-- ארכיון עדכונים חודשיים -->
@@ -2929,6 +2933,7 @@ function renderMonthlyArchive(child) {
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
         <span style="font-size:16px">📄</span>
         <span style="font-size:13px;font-weight:700;color:var(--dark)">${entry.month}</span>
+        ${entry.sentStamp ? `<span style="color:var(--sage);font-size:11px;font-weight:700">✅ נשלח</span>` : ''}
         ${entry.stamp ? stampHTML(entry.stamp, 16) : ''}
       </div>
       <div style="font-size:12px;color:var(--mid);line-height:1.5">${entry.text.substring(0,120)}...</div>
@@ -3055,6 +3060,7 @@ ${summary.devFollowUp.length || summary.devInProcess.length || summary.devSummar
     document.getElementById('monthly-draft').value = text;
     document.getElementById('ai-loading').style.display = 'none';
     document.getElementById('monthly-edit-section').style.display = 'block';
+    renderMonthlySentStatus();
   } catch(e) {
     document.getElementById('ai-loading').style.display = 'none';
     document.getElementById('generate-btn').style.display = 'block';
@@ -3062,12 +3068,18 @@ ${summary.devFollowUp.length || summary.devInProcess.length || summary.devSummar
   }
 }
 
-function sendMonthlyWhatsappAndSave() {
+function sendMonthlyWhatsapp() {
   const text = document.getElementById('monthly-draft').value;
   if (!text.trim()) return;
   const child = currentMonthlyChild;
+  const msg = `*עדכון חודשי אישי — ${child.name}*\nמ"מקום לגדול" 🌿\n\n${text}`;
+  window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+}
 
-  // שמירה לארכיון
+function markMonthlySent() {
+  const text = document.getElementById('monthly-draft').value;
+  if (!text.trim()) { showToast('אין טקסט לסימון כנשלח'); return; }
+  const child = currentMonthlyChild;
   const key = `child_${child.id}`;
   if (!monthlyArchive[key]) monthlyArchive[key] = [];
   const d = new Date();
@@ -3075,16 +3087,25 @@ function sendMonthlyWhatsappAndSave() {
   const monthLabel = `${monthNames[d.getMonth()]} ${d.getFullYear()}`;
   // הימנע מכפילות באותו חודש
   monthlyArchive[key] = monthlyArchive[key].filter(e => e.month !== monthLabel);
-  monthlyArchive[key].push({ month: monthLabel, text, stamp: makeStamp() });
+  const stamp = makeStamp();
+  monthlyArchive[key].push({ month: monthLabel, text, stamp, sentStamp: stamp });
   saveAll();
   renderMonthlyArchive(child);
-
-  const msg = `*עדכון חודשי אישי — ${child.name}*\nמ"מקום לגדול" 🌿\n\n${text}`;
-  window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
-  showToast('העדכון נשמר בארכיון ✓');
+  renderMonthlySentStatus();
+  showToast('סומן כנשלח בפועל ונשמר בארכיון ✓');
 }
 
-function sendMonthlyWhatsapp() { sendMonthlyWhatsappAndSave(); }
+function renderMonthlySentStatus() {
+  const child = currentMonthlyChild;
+  const slot = document.getElementById('monthly-sent-status');
+  if (!slot || !child) return;
+  const key = `child_${child.id}`;
+  const d = new Date();
+  const monthNames = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+  const monthLabel = `${monthNames[d.getMonth()]} ${d.getFullYear()}`;
+  const entry = (monthlyArchive[key] || []).find(e => e.month === monthLabel);
+  slot.innerHTML = (entry && entry.sentStamp) ? `✅ נשלח בפועל ע"י ${stampHTML(entry.sentStamp, 18)}` : '';
+}
 
 // ════════ PARENTS UPDATES ════════
 let parentsData = {};   // weekKey -> { text, photos: [base64...] }
@@ -3249,6 +3270,7 @@ function renderParentsScreen() {
   document.getElementById('parents-photos-link').value = entry.photosLink || '';
   const slot = document.getElementById('parents-stamp');
   if (slot) slot.innerHTML = entry.stamp ? stampHTML(entry.stamp, 16) : '';
+  renderSentStatus();
   renderParentsContributions();
   renderParentsArchive();
 }
@@ -3322,6 +3344,31 @@ function sendToWhatsapp() {
   window.open(`https://wa.me/?text=${encoded}`, '_blank');
 }
 
+function markParentsSent() {
+  const key = getWeekKey(currentWeekOffset);
+  const text = document.getElementById('parents-text').value;
+  if (!text.trim()) { showToast('אין טקסט לסימון כנשלח'); return; }
+  if (!parentsData[key]) parentsData[key] = { text: '', photosLink: '' };
+  parentsData[key].sentText = text;
+  parentsData[key].sentStamp = makeStamp();
+  saveAll();
+  renderSentStatus();
+  renderParentsArchive();
+  showToast('סומן כנשלח בפועל ✓');
+}
+
+function renderSentStatus() {
+  const key = getWeekKey(currentWeekOffset);
+  const entry = parentsData[key] || {};
+  const slot = document.getElementById('parents-sent-status');
+  if (!slot) return;
+  if (entry.sentStamp) {
+    slot.innerHTML = `✅ נשלח בפועל ע"י ${stampHTML(entry.sentStamp, 18)}`;
+  } else {
+    slot.innerHTML = '';
+  }
+}
+
 function renderParentsArchive() {
   const archive = document.getElementById('parents-archive');
   const keys = Object.keys(parentsData).filter(k => parentsData[k].text);
@@ -3337,8 +3384,8 @@ function renderParentsArchive() {
     item.innerHTML = `
       <span style="font-size:18px">📄</span>
       <div style="flex:1">
-        <div class="archive-week">שבוע ${key}</div>
-        <div class="archive-preview">${entry.text.substring(0,50)}...</div>
+        <div class="archive-week">שבוע ${key}${entry.sentStamp ? ` · <span style="color:var(--sage);font-size:11px;font-weight:700">✅ נשלח</span>` : ''}</div>
+        <div class="archive-preview">${(entry.sentText || entry.text).substring(0,50)}...</div>
       </div>
       <span style="color:var(--light-text);font-size:18px">‹</span>
     `;
@@ -3346,8 +3393,9 @@ function renderParentsArchive() {
       currentWeekOffset = 0; // approximate — just load it
       parentsData[key] = entry;
       document.getElementById('week-label').textContent = `שבוע ${key}`;
-      document.getElementById('parents-text').value = entry.text;
+      document.getElementById('parents-text').value = entry.sentText || entry.text;
       renderPhotosGrid(entry.photos || []);
+      renderSentStatus();
     };
     archive.appendChild(item);
   });
