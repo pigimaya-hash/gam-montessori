@@ -4106,6 +4106,7 @@ async function loadAll() {
     if (!data.childrenV2Migrated) runChildrenMigrationV2();
     if (!data.childrenV3Migrated) runChildrenMigrationV3();
     if (!data.childrenV4GenderSet) runChildrenMigrationV4();
+    if (!data.childrenV5NamesFixed) runChildrenMigrationV5();
     CHILDREN.sort((a, b) => a.name.localeCompare(b.name, 'he'));
   } catch(e) { console.error('טעינה נכשלה', e); }
   hideLoadingOverlay();
@@ -4127,6 +4128,17 @@ function runChildrenMigrationV4() {
   CHILDREN.forEach(c => { if (genderMap[c.name]) c.gender = genderMap[c.name]; });
   saveAll();
   fetch(fbUrl('/ganData/childrenV4GenderSet.json'), { method: 'PUT', body: JSON.stringify(true) });
+}
+
+// ════════ CHILDREN NAME SPELLING FIX V5 (רן שפיגלמן, דני דומובויץ) ════════
+function runChildrenMigrationV5() {
+  const nameFixMap = {
+    'רן שפיגלמו': 'רן שפיגלמן',
+    'דניאל דומבוביץ': 'דני דומובויץ',
+  };
+  CHILDREN.forEach(c => { if (nameFixMap[c.name]) c.name = nameFixMap[c.name]; });
+  saveAll();
+  fetch(fbUrl('/ganData/childrenV5NamesFixed.json'), { method: 'PUT', body: JSON.stringify(true) });
 }
 
 function runChildrenMigrationV3() {
