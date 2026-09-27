@@ -2476,6 +2476,10 @@ function renderSubfolders(area) {
           <div class="exercise-actions">
             <button class="children-btn" onclick="openProgressSheet('${ex.id}','${escAttr(ex.name)}')">👶 ילדים</button>
             <button class="notes-btn" onclick="toggleNotes('${ex.id}')">📝</button>
+            <button onclick="addNoteToMeeting('${ex.id}','${escAttr(ex.name)}')"
+              style="padding:5px 10px;border:none;border-radius:8px;background:var(--sage);color:white;font-family:'Heebo',sans-serif;font-size:11px;cursor:pointer;">
+              📋 לישיבה
+            </button>
           </div>
         </div>
         <div class="teacher-notes-box" id="notes-box-${ex.id}" style="display:${note?'block':'none'}">
@@ -2485,10 +2489,6 @@ function renderSubfolders(area) {
           </div>
           <textarea class="teacher-notes-ta" placeholder="למשל: להכין חרוזים, לזכור להדגים קודם..."
             onchange="saveNote('${ex.id}',this.value)">${note}</textarea>
-          <button onclick="addNoteToMeeting('${ex.id}','${escAttr(ex.name)}')"
-            style="margin-top:6px;padding:6px 12px;border:none;border-radius:8px;background:var(--sage);color:white;font-family:'Heebo',sans-serif;font-size:12px;cursor:pointer;">
-            📋 הוסיפי לדיון בישיבת צוות
-          </button>
         </div>
       `;
     }).join('');
