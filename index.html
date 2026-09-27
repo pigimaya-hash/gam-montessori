@@ -2485,6 +2485,10 @@ function renderSubfolders(area) {
           </div>
           <textarea class="teacher-notes-ta" placeholder="למשל: להכין חרוזים, לזכור להדגים קודם..."
             onchange="saveNote('${ex.id}',this.value)">${note}</textarea>
+          <button onclick="addNoteToMeeting('${ex.id}','${escAttr(ex.name)}')"
+            style="margin-top:6px;padding:6px 12px;border:none;border-radius:8px;background:var(--sage);color:white;font-family:'Heebo',sans-serif;font-size:12px;cursor:pointer;">
+            📋 הוסיפי לדיון בישיבת צוות
+          </button>
         </div>
       `;
     }).join('');
@@ -2513,6 +2517,20 @@ function toggleSubfolder(header) {
 function toggleNotes(exId) {
   const box = document.getElementById('notes-box-' + exId);
   box.style.display = box.style.display === 'none' ? 'block' : 'none';
+}
+
+function addNoteToMeeting(exId, exName) {
+  const note = teacherNotes[exId] || '';
+  const text = note.trim()
+    ? `${exName}: ${note.trim().substring(0, 80)}${note.length > 80 ? '...' : ''}`
+    : `לדיון: ${exName}`;
+  if (!meetingData.topics) meetingData.topics = [];
+  // בדיקה שלא נוסף כבר
+  const alreadyAdded = meetingData.topics.some(t => t.text === text);
+  if (alreadyAdded) { showToast('הנושא כבר ברשימת הדיון ✓'); return; }
+  meetingData.topics.push({ text, done: false });
+  fetch(`${FB_URL}/ganData/meeting.json`, { method: 'PUT', body: JSON.stringify(meetingData) });
+  showToast('נוסף לדיון בישיבת צוות ✓');
 }
 
 function saveNote(exId, val) {
