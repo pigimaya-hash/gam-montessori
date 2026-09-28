@@ -3545,12 +3545,14 @@ function renderParentsArchive() {
       <span style="color:var(--light-text);font-size:18px">‹</span>
     `;
     item.onclick = () => {
-      currentWeekOffset = 0; // approximate — just load it
+      currentWeekOffset = 0;
       parentsData[key] = entry;
       document.getElementById('week-label').textContent = `שבוע ${key}`;
       document.getElementById('parents-text').value = entry.sentText || entry.text;
       renderPhotosGrid(entry.photos || []);
       renderSentStatus();
+      document.getElementById('screen-parents').scrollTo(0, 0);
+      showToast('עדכון נטען ✓');
     };
     archive.appendChild(item);
   });
@@ -4374,12 +4376,6 @@ function checkLogin() {}
 async function init() {
   checkLoginStatus();
   showLoadingOverlay();
-  try {
-    await firebase.auth().signInAnonymously();
-    FB_TOKEN = await firebase.auth().currentUser.getIdToken();
-  } catch (e) {
-    console.error('התחברות אנונימית ל-Firebase נכשלה', e);
-  }
   await loadAll();
   hideLoadingOverlay();
   setTodayDate();
