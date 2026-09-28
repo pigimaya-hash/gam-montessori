@@ -3154,6 +3154,7 @@ async function generateUpdate() {
   const summary = buildChildDataSummary(child);
 
   const prompt = `את מדריכה בגן ילדים מונטסורי בשם "מקום לגדול", וכותבת עדכון חודשי אישי וחם להורים של ${summary.name} בעברית.\n\nנתונים על הילד/ה:\n- תרגילים ששלטה בהם: ${summary.mastered.slice(0,8).join(", ") || "עדיין בתחילת הדרך"}\n- תרגילים בתהליך: ${summary.practicing.slice(0,6).join(", ") || "ממשיכים לחקור"}\n- מצב רוח החודש: ${summary.moodSummary || "לא הוזן"}\n- הערות מורה: ${summary.notes.join(". ") || "אין הערות מיוחדות"}\n${summary.devSummary ? "סיכום התפתחותי: " + summary.devSummary : ""}\n\nכתבי עדכון של 3-4 פסקאות בסגנון תקשורת מקרבת — חמה, אישית. פתיחה עם שם הילד, תיאור רגעים ספציפיים, התקדמות בלמידה בתוך סיפור זורם, סיום חם עם ההורים. גוף ראשון רבים. ללא רשימות.`;
+  try {
     const res = await fetch(AI_PROXY_URL, {
       method: 'POST',
       headers: {
@@ -3332,7 +3333,6 @@ async function generateParentsDraft() {
   const hebrewMonths = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
   const monthName = hebrewMonths[new Date().getMonth()];
 
-  const prompt = `את מדריכה בגן ילדים מונטסורי בשם "מקום לגדול", וכותבת עדכון שבועי להורי כל ילדי הגן.
   const prompt = `את מדריכה בגן ילדים מונטסורי בשם "מקום לגדול", וכותבת עדכון שבועי להורים.\n\nפעילויות החודש שבוצעו: ${monthActivities.join(", ") || "אין עדיין"}\nדיווחי המדריכות: ${contributions.join(". ") || "אין דיווחים"}\n\nכתבי עדכון שבועי סיפורי וחם — 4-6 פסקאות. פתיחה חמה, תיאור פעילויות כסיפור חי עם מה שהילדים אמרו ואיך הגיבו, הסבר פדגוגי קצר בשפה פשוטה, סיום חם. גוף ראשון רבים. ללא רשימות.`;
       method: 'POST',
       headers: {
