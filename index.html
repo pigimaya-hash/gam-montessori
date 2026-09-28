@@ -1096,6 +1096,10 @@ firebase.initializeApp({
     <div style="margin-top:6px">
       <div class="field-label">💗 סיכום קצר</div>
       <textarea class="notes-input" id="dev-domains-summary" style="height:100px" placeholder="סיכום כללי לקראת ישיבת צוות / שיחת הורים..."></textarea>
+      <button onclick="addChildToMeeting(currentDevChild)"
+        style="margin-top:6px;padding:6px 12px;border:none;border-radius:8px;background:var(--sage);color:white;font-family:'Heebo',sans-serif;font-size:12px;cursor:pointer;width:100%">
+        📋 הוסיפי לדיון בישיבת צוות
+      </button>
     </div>
     <button class="save-btn" onclick="saveDevDomains()">💾 שמירה</button>
   </div>
@@ -1450,6 +1454,10 @@ firebase.initializeApp({
     <div class="field-group">
       <div class="field-label">📝 הערות</div>
       <textarea class="notes-input" id="update-notes" placeholder="הערות חופשיות..."></textarea>
+      <button onclick="addChildToMeeting(currentChildId)"
+        style="margin-top:6px;padding:6px 12px;border:none;border-radius:8px;background:var(--sage);color:white;font-family:'Heebo',sans-serif;font-size:12px;cursor:pointer;width:100%">
+        📋 הוסיפי לדיון בישיבת צוות
+      </button>
     </div>
 
     <button class="save-btn" onclick="saveUpdate()">שמור עדכון</button>
@@ -2485,10 +2493,6 @@ function renderSubfolders(area) {
           </div>
           <textarea class="teacher-notes-ta" placeholder="למשל: להכין חרוזים, לזכור להדגים קודם..."
             onchange="saveNote('${ex.id}',this.value)">${note}</textarea>
-          <button onclick="addNoteToMeeting('${ex.id}','${escAttr(ex.name)}')"
-            style="margin-top:6px;padding:6px 12px;border:none;border-radius:8px;background:var(--sage);color:white;font-family:'Heebo',sans-serif;font-size:12px;cursor:pointer;">
-            📋 הוסיפי לדיון בישיבת צוות
-          </button>
         </div>
       `;
     }).join('');
@@ -2517,6 +2521,23 @@ function toggleSubfolder(header) {
 function toggleNotes(exId) {
   const box = document.getElementById('notes-box-' + exId);
   box.style.display = box.style.display === 'none' ? 'block' : 'none';
+}
+
+function addChildToMeeting(childOrId) {
+  let child;
+  if (childOrId && typeof childOrId === 'object') {
+    child = childOrId;
+  } else {
+    child = CHILDREN.find(c => c.id == childOrId);
+  }
+  if (!child) { showToast('לא נמצא ילד'); return; }
+  const text = `לדון על ${child.name}`;
+  if (!meetingData.topics) meetingData.topics = [];
+  const alreadyAdded = meetingData.topics.some(t => t.text === text);
+  if (alreadyAdded) { showToast('הילד/ה כבר ברשימת הדיון ✓'); return; }
+  meetingData.topics.push({ text, done: false });
+  fetch(`${FB_URL}/ganData/meeting.json`, { method: 'PUT', body: JSON.stringify(meetingData) });
+  showToast(`${child.name} נוסף/ה לדיון בישיבת צוות ✓`);
 }
 
 function addNoteToMeeting(exId, exName) {
@@ -3132,29 +3153,7 @@ async function generateUpdate() {
   const child = currentMonthlyChild;
   const summary = buildChildDataSummary(child);
 
-  const prompt = `אתה מדריך/ה בגן ילדים מונטסורי בשם "מקום לגדול".
-כתוב עדכון חודשי אישי וחם להורים של ${summary.name} בעברית.
-
-נתונים על הילד/ה:
-- תרגילים ששלט/ה בהם (${summary.mastered.length}): ${summary.mastered.slice(0,8).join(', ') || 'עדיין בתחילת הדרך'}
-- תרגילים בתהליך (${summary.practicing.length}): ${summary.practicing.slice(0,6).join(', ') || 'ממשיכים לחקור'}
-- מצב רוח החודש: ${summary.moodSummary || 'לא הוזן'}
-- הערות מורה: ${summary.notes.join('. ') || 'אין הערות מיוחדות'}
-${summary.devFollowUp.length || summary.devInProcess.length || summary.devSummary ? `
-מעקב התפתחותי (רגיש — יש לשלב בעדינות ובטון תומך, ללא ניסוח מדאיג):
-- תחומים תואמים להתפתחות: ${summary.devOnTrack.join(', ') || '—'}
-- תחומים בתהליך: ${summary.devInProcess.join(', ') || '—'}
-- תחומים הדורשים מעקב: ${summary.devFollowUp.join(', ') || '—'}
-- סיכום המדריכות: ${summary.devSummary || '—'}` : ''}
-
-כתוב עדכון של 3-4 פסקאות קצרות:
-1. פתיחה חמה ואישית עם שם הילד/ה
-2. התקדמות בלמידה — מה שלט/ה, מה מעסיק אותו/ה כרגע
-3. תצפית אישית — משהו שראית שמגדיר את הילד/ה החודש${summary.devFollowUp.length ? '. אם רלוונטי, שלבי אזכור עדין ותומך של תחום שדורש תשומת לב נוספת, בלי להדאיג' : ''}
-4. סיום מעודד ומחבר עם ההורים
-
-כתוב בגוף ראשון ("שמנו לב", "אנחנו רואים"), בגובה העיניים, ללא ז'רגון, עם חמימות. אל תמנה רשימות — כתוב פסקאות זורמות.`;
-
+  const prompt = `את מדריכה בגן ילדים מונטסורי בשם "מקום לגדול", וכותבת עדכון חודשי אישי וחם להורים של ${summary.name} בעברית.\n\nנתונים על הילד/ה:\n- תרגילים ששלטה בהם: ${summary.mastered.slice(0,8).join(", ") || "עדיין בתחילת הדרך"}\n- תרגילים בתהליך: ${summary.practicing.slice(0,6).join(", ") || "ממשיכים לחקור"}\n- מצב רוח החודש: ${summary.moodSummary || "לא הוזן"}\n- הערות מורה: ${summary.notes.join(". ") || "אין הערות מיוחדות"}\n${summary.devSummary ? "סיכום התפתחותי: " + summary.devSummary : ""}\n\nכתבי עדכון של 3-4 פסקאות בסגנון תקשורת מקרבת — חמה, אישית. פתיחה עם שם הילד, תיאור רגעים ספציפיים, התקדמות בלמידה בתוך סיפור זורם, סיום חם עם ההורים. גוף ראשון רבים. ללא רשימות.`;
   try {
     const res = await fetch(AI_PROXY_URL, {
       method: 'POST',
@@ -3334,17 +3333,7 @@ async function generateParentsDraft() {
   const hebrewMonths = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
   const monthName = hebrewMonths[new Date().getMonth()];
 
-  const prompt = `את/ה מדריך/ה בגן ילדים מונטסורי בשם "מקום לגדול".
-כתוב/י עדכון שבועי חם וקצר להורי כל ילדי הגן, בעברית, על סמך המידע הבא:
-
-פעילויות מתוכננות לחודש ${monthName} שכבר בוצעו:
-${monthActivities.length ? monthActivities.map(a => `- ${a}`).join('\n') : '(אין)'}
-
-מה שהמדריכות דיווחו שעשו ממש השבוע:
-${contributions.length ? contributions.map(c => `- ${c}`).join('\n') : '(אין)'}
-
-כתוב/י עדכון של 2-3 פסקאות קצרות: פתיחה חמה ("שלום משפחות יקרות 🌿"), תיאור זורם ומעניין של מה שהתרחש בגן השבוע (משלב בין הפעילויות המתוכננות לדיווחי המדריכות בלי להפריד אותם לרשימה טכנית), וסיום חם. בגוף ראשון רבים ("עשינו", "יצאנו"), בגובה העיניים, ללא ז'רגון מקצועי.`;
-
+  const prompt = `את מדריכה בגן ילדים מונטסורי בשם "מקום לגדול", וכותבת עדכון שבועי להורים.\n\nפעילויות החודש שבוצעו: ${monthActivities.join(", ") || "אין עדיין"}\nדיווחי המדריכות: ${contributions.join(". ") || "אין דיווחים"}\n\nכתבי עדכון שבועי סיפורי וחם — 4-6 פסקאות. פתיחה חמה, תיאור פעילויות כסיפור חי עם מה שהילדים אמרו ואיך הגיבו, הסבר פדגוגי קצר בשפה פשוטה, סיום חם. גוף ראשון רבים. ללא רשימות.`;
   try {
     const res = await fetch(AI_PROXY_URL, {
       method: 'POST',
@@ -3518,12 +3507,14 @@ function renderParentsArchive() {
       <span style="color:var(--light-text);font-size:18px">‹</span>
     `;
     item.onclick = () => {
-      currentWeekOffset = 0; // approximate — just load it
+      currentWeekOffset = 0;
       parentsData[key] = entry;
       document.getElementById('week-label').textContent = `שבוע ${key}`;
       document.getElementById('parents-text').value = entry.sentText || entry.text;
       renderPhotosGrid(entry.photos || []);
       renderSentStatus();
+      document.getElementById('screen-parents').scrollTo(0, 0);
+      showToast('עדכון נטען ✓');
     };
     archive.appendChild(item);
   });
@@ -4347,12 +4338,6 @@ function checkLogin() {}
 async function init() {
   checkLoginStatus();
   showLoadingOverlay();
-  try {
-    await firebase.auth().signInAnonymously();
-    FB_TOKEN = await firebase.auth().currentUser.getIdToken();
-  } catch (e) {
-    console.error('התחברות אנונימית ל-Firebase נכשלה', e);
-  }
   await loadAll();
   hideLoadingOverlay();
   setTodayDate();
