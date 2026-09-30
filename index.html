@@ -964,6 +964,14 @@ firebase.initializeApp({
         </div>
         <span class="menu-arrow">‹</span>
       </button>
+      <button class="menu-card" onclick="openQuickFill()">
+        <div class="menu-icon" style="background:#FFF6E5">✏️</div>
+        <div class="menu-info">
+          <div class="menu-label">מילוי מהיר לפי ילד</div>
+          <div class="menu-desc">כל התרגילים של ילד במסך אחד</div>
+        </div>
+        <span class="menu-arrow">‹</span>
+      </button>
       <button class="menu-card" onclick="navigate('meeting')">
         <div class="menu-icon" style="background:#FFF0F0">👥</div>
         <div class="menu-info">
@@ -1712,8 +1720,8 @@ const AREAS = [
       {id:'s30',name:'6 – צורות מיוחדות'},
     ]},
   ]},
-  {id:'practical', name:'חיים מעשיים', icon:'🌿', color:'#7A9E7E',
-   sub:'עצמאות, נימוסים, סביבה',
+  {id:'practical', name:'כישורי חיים', icon:'🌿', color:'#7A9E7E',
+   sub:'עצמאות, טיפול עצמי, נימוסים, סביבה',
    folders:[
     {name:'נשיאת חפצים', exercises:[
       {id:'p1',name:'מגש (עם חפצים)'},
@@ -1778,6 +1786,17 @@ const AREAS = [
     {name:'סביבה', exercises:[
       {id:'p44',name:'טיפול בעציץ'},
       {id:'p45',name:'סידור פרחים'},
+    ]},
+    {name:'עצמאות וטיפול עצמי', exercises:[
+      {id:'p46',name:'שטיפת ידיים'},
+      {id:'p47',name:'שטיפת פנים'},
+      {id:'p48',name:'קינוח אף'},
+      {id:'p49',name:'להתפשט'},
+      {id:'p50',name:'להתלבש'},
+      {id:'p51',name:'לחלוץ נעליים'},
+      {id:'p52',name:'לנעול נעליים'},
+      {id:'p53',name:'להתפנות בשירותים'},
+      {id:'p54',name:'לנגב לבד'},
     ]},
   ]},
   {id:'culture', name:'תרבות', icon:'🌍', color:'#D4A44C',
@@ -2584,13 +2603,8 @@ function addExercise(areaId, fi) {
 
 function markAll(level) {
   const stamp = makeStamp();
-  CHILDREN.forEach(child => {
-    if (!childProgress[child.id]) childProgress[child.id] = {};
-    childProgress[child.id][currentExId] = level;
-    if (!progressStamps[child.id]) progressStamps[child.id] = {};
-    progressStamps[child.id][currentExId] = stamp;
-  });
-  saveAll();
+  CHILDREN.forEach(child => applyProgressLocal(child.id, currentExId, level, stamp));
+  saveProgressEntries(CHILDREN.map(child => ({ cid: child.id, exId: currentExId, level, stamp })));
   openProgressSheet(currentExId, currentExName);
   showToast(`כל הילדים סומנו ✓`);
 }
@@ -2622,16 +2636,15 @@ function openProgressSheet(exId, exName) {
 }
 
 function setProgress(childId, exId, level, btn) {
-  if (!childProgress[childId]) childProgress[childId] = {};
-  const current = childProgress[childId][exId] || 0;
+  const current = (childProgress[childId] || {})[exId] || 0;
   // toggle off if same level clicked
-  childProgress[childId][exId] = current === level ? 0 : level;
-  if (!progressStamps[childId]) progressStamps[childId] = {};
-  progressStamps[childId][exId] = makeStamp();
-  saveAll();
+  const newLevel = current === level ? 0 : level;
+  const stamp = makeStamp();
+  applyProgressLocal(childId, exId, newLevel, stamp);
+  saveProgressEntries([{ cid: childId, exId, level: newLevel, stamp }]);
   // re-render the row
   const row = btn.closest('.child-progress-row');
-  const status = childProgress[childId][exId];
+  const status = childProgress[childId][exId] || 0;
   row.querySelectorAll('.cp-btn').forEach((b,i) => {
     b.className = 'cp-btn' + (status === i+1 ? ` s${i+1}` : '');
   });
@@ -4037,6 +4050,153 @@ async function dailyBackup(snapshotJson) {
   } catch (e) { console.error('גיבוי יומי נכשל', e); }
 }
 
+// ════════ שמירת התקדמות – רק מה שהשתנה ════════
+// כל סימון נשמר בנתיב משלו, כך ששתי גננות שממלאות במקביל לא דורסות זו את זו
+async function saveProgressEntries(entries) {
+  if (!dataLoaded) { showToast('הנתונים לא נטענו – רענני את הדף'); return false; }
+  const body = {};
+  entries.forEach(({ cid, exId, level, stamp }) => {
+    body[`childProgress/${cid}/${exId}`] = level || null;
+    body[`progressStamps/${cid}/${exId}`] = stamp;
+  });
+  try {
+    const res = await fetch(fbUrl('/ganData.json'), { method: 'PATCH', body: JSON.stringify(body) });
+    if (!res.ok) throw new Error('status ' + res.status);
+    return true;
+  } catch (e) {
+    console.error('שמירת התקדמות נכשלה', e);
+    showToast('⚠️ השמירה נכשלה – בדקי חיבור לאינטרנט');
+    return false;
+  }
+}
+function applyProgressLocal(cid, exId, level, stamp) {
+  if (!childProgress[cid]) childProgress[cid] = {};
+  if (level) childProgress[cid][exId] = level; else delete childProgress[cid][exId];
+  if (!progressStamps[cid]) progressStamps[cid] = {};
+  progressStamps[cid][exId] = stamp;
+}
+
+// ── עותק מקומי של השרת, לעדכונים חיים לפי נתיב ──
+let ganMirror = {};
+function setAtPath(root, path, value) {
+  const keys = String(path || '').split('/').filter(Boolean);
+  if (!keys.length) return value;
+  if (root == null || typeof root !== 'object') root = {};
+  let o = root;
+  for (let i = 0; i < keys.length - 1; i++) {
+    if (o[keys[i]] == null || typeof o[keys[i]] !== 'object') o[keys[i]] = {};
+    o = o[keys[i]];
+  }
+  const last = keys[keys.length - 1];
+  if (value === null) { if (Array.isArray(o)) o[last] = null; else delete o[last]; }
+  else o[last] = value;
+  return root;
+}
+
+// ════════ מילוי מהיר לפי ילד ════════
+const QF_LEVELS = [{ l: 1, icon: '🌱', t: 'הוצג' }, { l: 2, icon: '⭐', t: 'מתאמן/ת' }, { l: 3, icon: '✅', t: 'שלט/ה' }];
+let qfChildId = null;
+const qfOpenAreas = new Set();
+function qfProgressCount(cid) {
+  const p = childProgress[cid] || {};
+  return Object.values(p).filter(v => v).length;
+}
+function closeQuickFill() { const el = document.getElementById('qf-overlay'); if (el) el.remove(); qfChildId = null; }
+function openQuickFill() {
+  closeQuickFill();
+  const ov = document.createElement('div');
+  ov.id = 'qf-overlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:var(--cream,#FAF6EF);z-index:9998;overflow:auto;font-family:Heebo,sans-serif;direction:rtl;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)';
+  document.body.appendChild(ov);
+  renderQuickFillList();
+}
+function qfHeader(title, backFn) {
+  return `<div style="position:sticky;top:0;background:var(--cream,#FAF6EF);z-index:2;display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--sand,#e5dccb)">
+    <button onclick="${backFn}" style="border:none;background:var(--card-bg,#fff);border-radius:50%;width:36px;height:36px;font-size:18px;cursor:pointer">→</button>
+    <div style="font-size:18px;font-weight:700;flex:1">${title}</div>
+  </div>`;
+}
+function renderQuickFillList() {
+  const ov = document.getElementById('qf-overlay'); if (!ov) return;
+  qfChildId = null;
+  ov.innerHTML = qfHeader('✏️ מילוי מהיר לפי ילד', 'closeQuickFill()') + `
+    <div style="max-width:620px;margin:0 auto;padding:12px 16px 30px">
+      <div style="font-size:13px;opacity:.75;margin-bottom:12px">בחרי ילד, וסמני את כל התרגילים שלו במסך אחד. כל סימון נשמר מיד.</div>
+      ${CHILDREN.map(c => `
+        <button onclick="renderQuickChild(${c.id})" style="width:100%;display:flex;align-items:center;gap:12px;background:var(--card-bg,#fff);border:1px solid var(--sand,#eee);border-radius:14px;padding:10px 12px;margin-bottom:8px;cursor:pointer;font-family:inherit;text-align:right">
+          <div class="cp-avatar" style="background:${c.color}">${c.name.charAt(0)}</div>
+          <div style="flex:1;font-size:15px">${c.name}${ageLabel(c)}</div>
+          <div style="font-size:12px;opacity:.7">${qfProgressCount(c.id)} סומנו</div>
+          <span style="opacity:.5">‹</span>
+        </button>`).join('')}
+    </div>`;
+}
+function qfBtns(cid, exId, status) {
+  return QF_LEVELS.map(({ l, icon, t }) =>
+    `<button class="cp-btn ${status === l ? 's' + l : ''}" title="${t}" onclick="qfSet(${cid},'${exId}',${l})">${icon}</button>`).join('');
+}
+function renderQuickChild(cid) {
+  const ov = document.getElementById('qf-overlay'); if (!ov) return;
+  const child = CHILDREN.find(c => c.id == cid); if (!child) return renderQuickFillList();
+  const keepScroll = qfChildId == cid ? ov.scrollTop : 0;
+  qfChildId = cid;
+  const prog = childProgress[cid] || {};
+  const areasHtml = AREAS.map(area => {
+    const all = area.folders.flatMap(f => f.exercises);
+    const done = all.filter(e => prog[e.id]).length;
+    const folders = area.folders.map((f, fi) => `
+      <div style="margin:10px 0 4px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+        <div style="font-weight:700;font-size:14px;flex:1;min-width:120px">📁 ${f.name}</div>
+        <span style="font-size:12px;opacity:.7">כל התיקייה:</span>
+        ${QF_LEVELS.map(({ l, icon, t }) => `<button onclick="qfSetFolder(${cid},'${area.id}',${fi},${l})" title="${t} לכל התיקייה" style="border:1px solid var(--sand,#ddd);background:var(--card-bg,#fff);border-radius:10px;padding:4px 8px;cursor:pointer;font-size:14px">${icon}</button>`).join('')}
+      </div>
+      ${f.exercises.map(e => `
+        <div class="child-progress-row" id="qf-row-${e.id}">
+          <div class="cp-name" style="font-size:14px">${e.name}</div>
+          <div class="cp-status-btns">${qfBtns(cid, e.id, prog[e.id] || 0)}</div>
+        </div>`).join('')}`).join('');
+    return `<details data-area="${area.id}" ${qfOpenAreas.has(area.id) ? 'open' : ''} ontoggle="qfToggleArea(this)" style="background:var(--card-bg,#fff);border-radius:14px;margin-bottom:10px;padding:10px 14px;border-right:5px solid ${area.color}">
+      <summary style="cursor:pointer;font-size:16px;font-weight:700;list-style-position:inside">${area.icon} ${area.name} <span style="font-weight:400;font-size:13px;opacity:.7">(${done}/${all.length})</span></summary>
+      ${folders}
+    </details>`;
+  }).join('');
+  ov.innerHTML = qfHeader(`${child.name}${ageLabel(child)}`, 'renderQuickFillList()') + `
+    <div style="max-width:620px;margin:0 auto;padding:12px 16px 30px">
+      <div style="font-size:13px;opacity:.8;margin-bottom:12px">🌱 הוצג · ⭐ מתאמן/ת · ✅ שלט/ה — לחיצה נוספת על אותו סימון מבטלת אותו.</div>
+      ${areasHtml}
+    </div>`;
+  ov.scrollTop = keepScroll;
+}
+function qfToggleArea(el) { if (el.open) qfOpenAreas.add(el.dataset.area); else qfOpenAreas.delete(el.dataset.area); }
+async function qfSet(cid, exId, level) {
+  const prev = (childProgress[cid] || {})[exId] || 0;
+  const next = prev === level ? 0 : level;
+  const prevStamp = (progressStamps[cid] || {})[exId];
+  const stamp = makeStamp();
+  applyProgressLocal(cid, exId, next, stamp);
+  const row = document.getElementById('qf-row-' + exId);
+  if (row) row.querySelector('.cp-status-btns').innerHTML = qfBtns(cid, exId, next);
+  const ok = await saveProgressEntries([{ cid, exId, level: next, stamp }]);
+  if (!ok) {
+    applyProgressLocal(cid, exId, prev, prevStamp || null);
+    if (row && qfChildId == cid) row.querySelector('.cp-status-btns').innerHTML = qfBtns(cid, exId, prev);
+  }
+}
+async function qfSetFolder(cid, areaId, fi, level) {
+  const area = AREAS.find(a => a.id === areaId); if (!area) return;
+  const exs = area.folders[fi].exercises;
+  const prog = childProgress[cid] || {};
+  const allAlready = exs.every(e => (prog[e.id] || 0) === level);
+  const next = allAlready ? 0 : level;
+  const stamp = makeStamp();
+  const before = exs.map(e => ({ exId: e.id, level: prog[e.id] || 0, stamp: (progressStamps[cid] || {})[e.id] || null }));
+  exs.forEach(e => applyProgressLocal(cid, e.id, next, stamp));
+  renderQuickChild(cid);
+  const ok = await saveProgressEntries(exs.map(e => ({ cid, exId: e.id, level: next, stamp })));
+  if (ok) showToast(next ? 'כל התיקייה סומנה ✓' : 'הסימון בוטל ✓');
+  else { before.forEach(b => applyProgressLocal(cid, b.exId, b.level, b.stamp)); if (qfChildId == cid) renderQuickChild(cid); }
+}
+
 // ── מסך הגיבויים ──
 function closeBackups() { const el = document.getElementById('backups-overlay'); if (el) el.remove(); }
 function backupLabel(key) {
@@ -4124,11 +4284,17 @@ function startRealtimeSync() {
   if (ganDataEvtSource) ganDataEvtSource.close();
   const evtSource = new EventSource(fbUrl(`/ganData.json`));
   ganDataEvtSource = evtSource;
-  evtSource.addEventListener('put', e => {
+  // עדכון חי לפי נתיב: כל שינוי (גם של סימון בודד) מעודכן בעותק המקומי
+  const onEvt = kind => e => {
     try {
       const d = JSON.parse(e.data);
-      if (!d.data) return;
-      const data = d.data;
+      if (kind === 'put') {
+        ganMirror = setAtPath(ganMirror, d.path, d.data) || {};
+      } else if (d.data && typeof d.data === 'object') {
+        const base = d.path === '/' ? '' : d.path;
+        Object.entries(d.data).forEach(([k, v]) => { ganMirror = setAtPath(ganMirror, base + '/' + k, v) || {}; });
+      } else return;
+      const data = ganMirror;
 
       // עדכון נתונים
       if (data.attendance && typeof data.attendance === 'object' && !Array.isArray(data.attendance)) attendance = data.attendance;
@@ -4158,9 +4324,11 @@ function startRealtimeSync() {
         }
       });
 
-      // רענון המסך הפעיל
+      // רענון המסך הפעיל – אבל לא בזמן שמקלידים בו, כדי לא למחוק טקסט באמצע כתיבה
       const active = document.querySelector('.screen.active');
       if (!active) return;
+      const typing = document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName) && active.contains(document.activeElement);
+      if (typing) return;
       const id = active.id;
       if (id === 'screen-daily') renderDailyList();
       if (id === 'screen-pedagogic') {
@@ -4181,8 +4349,11 @@ function startRealtimeSync() {
       if (id === 'screen-calendar')    renderCalendar();
       if (id === 'screen-reminders')   renderReminders();
       updateHomeSummary();
+      if (qfChildId != null && document.getElementById('qf-overlay')) renderQuickChild(qfChildId);
     } catch(err) {}
-  });
+  };
+  evtSource.addEventListener('put', onEvt('put'));
+  evtSource.addEventListener('patch', onEvt('patch'));
 }
 
 async function saveAll() {
@@ -4190,8 +4361,7 @@ async function saveAll() {
   // שמירה נפרדת לכל מקטע למניעת דריסת נתונים
   const saves = [
     fetch(fbUrl(`/ganData/dailyUpdates.json`), { method: 'PUT', body: JSON.stringify(dailyUpdates) }),
-    fetch(fbUrl(`/ganData/childProgress.json`), { method: 'PUT', body: JSON.stringify(childProgress) }),
-    fetch(fbUrl(`/ganData/progressStamps.json`), { method: 'PUT', body: JSON.stringify(progressStamps) }),
+    // childProgress / progressStamps נשמרים רק דרך saveProgressEntries – כל סימון בנפרד
     fetch(fbUrl(`/ganData/teacherNotes.json`), { method: 'PUT', body: JSON.stringify(teacherNotes) }),
     fetch(fbUrl(`/ganData/noteStamps.json`), { method: 'PUT', body: JSON.stringify(noteStamps) }),
     fetch(fbUrl(`/ganData/months.json`), { method: 'PUT', body: JSON.stringify(MONTHS.map(m => m.activities)) }),
@@ -4224,6 +4394,7 @@ async function loadAll() {
     if (!res.ok || (data && data.error)) throw new Error('גישה נדחתה: ' + (data && data.error));
     if (!data) { dataLoaded = true; return; }
     dailyBackup(JSON.stringify(data)); // עותק של הנתונים כפי שהגיעו מהשרת
+    ganMirror = JSON.parse(JSON.stringify(data));
     if (data.attendance && typeof data.attendance === 'object' && !Array.isArray(data.attendance)) attendance = data.attendance;
     if (data.dailyUpdates)  dailyUpdates  = data.dailyUpdates;
     if (data.childProgress) childProgress = data.childProgress;
