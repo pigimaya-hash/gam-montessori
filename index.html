@@ -1012,6 +1012,14 @@ firebase.initializeApp({
         </div>
         <span class="menu-arrow">‹</span>
       </button>
+      <button class="menu-card" onclick="openBackups()">
+        <div class="menu-icon" style="background:#EAF5EC">🛡️</div>
+        <div class="menu-info">
+          <div class="menu-label">גיבויים</div>
+          <div class="menu-desc">גיבוי יומי אוטומטי ושחזור</div>
+        </div>
+        <span class="menu-arrow">‹</span>
+      </button>
     </div>
   </div>
 </div>
@@ -2799,7 +2807,7 @@ function archiveMeeting() {
   renderTopics();
   renderMeetingArchive();
   fetch(fbUrl(`/ganData/meeting.json`), { method: 'PUT', body: JSON.stringify(meetingData) });
-  fetch(fbUrl(`/ganData/meetingArchive.json`), { method: 'PUT', body: JSON.stringify(meetingArchive) });
+  if (dataLoaded) fetch(fbUrl(`/ganData/meetingArchive.json`), { method: 'PUT', body: JSON.stringify(meetingArchive) });
   showToast('הישיבה נשמרה לארכיון ✓');
 }
 
@@ -3973,8 +3981,140 @@ function stampHTML(stamp, size) {
 const FB_URL = 'https://makom-ligdol-a9f7d-default-rtdb.firebaseio.com';
 const AI_PROXY_URL = 'https://gan-ai-proxypigimayaworkersdev.pigimaya.workers.dev/';
 let FB_TOKEN = null;
+let dataLoaded = false; // שמירה מותרת רק אחרי טעינה מוצלחת – מונע דריסת נתונים בנתונים ריקים
 function fbUrl(path) {
   return FB_TOKEN ? `${FB_URL}${path}?auth=${FB_TOKEN}` : `${FB_URL}${path}`;
+}
+
+// ════════ חיבור מאובטח ל-Firebase ════════
+// מקבל אסימון גישה לפני טעינת הנתונים: משתמשת Google מחוברת, ואם אין – חיבור אנונימי
+firebase.auth().onIdTokenChanged(async u => {
+  try { FB_TOKEN = u ? await u.getIdToken() : null; } catch (e) { FB_TOKEN = null; }
+});
+async function ensureFirebaseAuth() {
+  const auth = firebase.auth();
+  let u = await new Promise(res => { const un = auth.onAuthStateChanged(x => { un(); res(x); }); });
+  if (!u) u = (await auth.signInAnonymously()).user;
+  FB_TOKEN = await u.getIdToken();
+}
+
+// ════════ גיבוי יומי אוטומטי ════════
+// בפתיחה הראשונה של כל יום נשמר עותק מלא של הנתונים תחת /backups/<תאריך>.
+// הגיבויים נשמרים מחוץ ל-ganData, ולכן שמירה רגילה של האפליקציה לא יכולה לדרוס אותם.
+const BACKUP_KEEP = 40; // כמה גיבויים לשמור (הישנים ביותר נמחקים)
+function fbUrlQ(path, q) { const u = fbUrl(path); return u + (u.includes('?') ? '&' : '?') + q; }
+function nowStampKey() {
+  const d = new Date();
+  return `${todayKey()}_${String(d.getHours()).padStart(2,'0')}${String(d.getMinutes()).padStart(2,'0')}`;
+}
+async function listBackups() {
+  const res = await fetch(fbUrlQ('/backups.json', 'shallow=true'));
+  const list = await res.json();
+  if (!res.ok || (list && list.error)) throw new Error('אין גישה לגיבויים');
+  return Object.keys(list || {}).filter(k => /^\d{4}-\d{2}-\d{2}/.test(k)).sort();
+}
+async function writeBackup(key, snapshotJson) {
+  const res = await fetch(fbUrl(`/backups/${key}.json`), {
+    method: 'PUT',
+    body: `{"at":${JSON.stringify(new Date().toISOString())},"data":${snapshotJson}}`,
+  });
+  if (!res.ok) throw new Error('שמירת הגיבוי נכשלה');
+}
+async function trimBackups(keys) {
+  const extra = keys.length - BACKUP_KEEP;
+  for (let i = 0; i < extra; i++) {
+    await fetch(fbUrl(`/backups/${keys[i]}.json`), { method: 'DELETE' });
+  }
+}
+async function dailyBackup(snapshotJson) {
+  try {
+    const keys = await listBackups();
+    const today = todayKey();
+    if (keys.includes(today)) return; // כבר יש גיבוי להיום
+    await writeBackup(today, snapshotJson);
+    keys.push(today); keys.sort();
+    await trimBackups(keys);
+  } catch (e) { console.error('גיבוי יומי נכשל', e); }
+}
+
+// ── מסך הגיבויים ──
+function closeBackups() { const el = document.getElementById('backups-overlay'); if (el) el.remove(); }
+function backupLabel(key) {
+  const [date, time] = key.split('_');
+  const [y, m, d] = date.split('-');
+  return `${d}/${m}/${y}` + (time ? ` בשעה ${time.slice(0,2)}:${time.slice(2)} (ידני)` : '');
+}
+async function openBackups() {
+  closeBackups();
+  const ov = document.createElement('div');
+  ov.id = 'backups-overlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:flex-end;justify-content:center;font-family:Heebo,sans-serif;direction:rtl';
+  ov.innerHTML = `
+    <div style="background:var(--card-bg,#fff);width:100%;max-width:520px;max-height:85vh;overflow:auto;border-radius:20px 20px 0 0;padding:20px 18px calc(20px + env(safe-area-inset-bottom,0px))">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <div style="font-size:19px;font-weight:700">🛡️ גיבויים</div>
+        <button onclick="closeBackups()" style="border:none;background:none;font-size:22px;cursor:pointer">✕</button>
+      </div>
+      <div style="font-size:13px;opacity:.75;margin-bottom:14px">גיבוי נשמר אוטומטית פעם ביום, בפתיחה הראשונה של האפליקציה. נשמרים ${BACKUP_KEEP} הגיבויים האחרונים.</div>
+      <button onclick="manualBackup()" style="width:100%;padding:12px;border-radius:12px;border:none;background:#4A7C59;color:#fff;font-size:15px;font-family:inherit;cursor:pointer;margin-bottom:8px">📥 גבה עכשיו</button>
+      <button onclick="downloadBackupFile()" style="width:100%;padding:12px;border-radius:12px;border:2px solid var(--sand,#e5dccb);background:none;font-size:15px;font-family:inherit;cursor:pointer;margin-bottom:16px">💾 הורד עותק לקובץ במכשיר</button>
+      <div id="backups-list" style="font-size:14px">טוען...</div>
+    </div>`;
+  ov.addEventListener('click', e => { if (e.target === ov) closeBackups(); });
+  document.body.appendChild(ov);
+  try {
+    const keys = (await listBackups()).reverse();
+    const box = document.getElementById('backups-list');
+    if (!box) return;
+    if (!keys.length) { box.textContent = 'עדיין אין גיבויים. הגיבוי הראשון יישמר בפתיחה הבאה של האפליקציה, או בלחיצה על "גבה עכשיו".'; return; }
+    box.innerHTML = keys.map(k => `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 4px;border-bottom:1px solid var(--sand,#eee)">
+        <span>${backupLabel(k)}</span>
+        <button onclick="restoreBackup('${k}')" style="padding:6px 14px;border-radius:10px;border:1px solid #c0392b;color:#c0392b;background:none;font-family:inherit;cursor:pointer">שחזר</button>
+      </div>`).join('');
+  } catch (e) {
+    const box = document.getElementById('backups-list');
+    if (box) box.textContent = 'לא הצלחנו לטעון את רשימת הגיבויים. בדקי חיבור לאינטרנט.';
+  }
+}
+async function fetchCurrentDataJson() {
+  const res = await fetch(fbUrl('/ganData.json'));
+  const txt = await res.text();
+  if (!res.ok || txt.includes('"error"') && txt.length < 200) throw new Error('טעינה נכשלה');
+  return txt;
+}
+async function manualBackup() {
+  try {
+    const snap = await fetchCurrentDataJson();
+    await writeBackup(nowStampKey(), snap);
+    await trimBackups(await listBackups());
+    showToast('הגיבוי נשמר ✓');
+    openBackups();
+  } catch (e) { alert('הגיבוי נכשל. בדקי חיבור לאינטרנט ונסי שוב.'); }
+}
+async function downloadBackupFile() {
+  try {
+    const snap = await fetchCurrentDataJson();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([snap], { type: 'application/json' }));
+    a.download = `makom-ligdol-backup-${todayKey()}.json`;
+    document.body.appendChild(a); a.click(); a.remove();
+  } catch (e) { alert('ההורדה נכשלה. בדקי חיבור לאינטרנט ונסי שוב.'); }
+}
+async function restoreBackup(key) {
+  if (!confirm(`לשחזר את כל הנתונים למצב של ${backupLabel(key)}?\n\nכל מה שהוזן אחרי הגיבוי הזה יוחלף.\nלפני השחזור יישמר גיבוי של המצב הנוכחי, כך שאפשר יהיה לחזור אליו.`)) return;
+  try {
+    // גיבוי של המצב הנוכחי לפני השחזור
+    const current = await fetchCurrentDataJson();
+    await writeBackup(nowStampKey(), current);
+    const res = await fetch(fbUrl(`/backups/${key}/data.json`));
+    const txt = await res.text();
+    if (!res.ok || txt === 'null') throw new Error('הגיבוי ריק');
+    const put = await fetch(fbUrl('/ganData.json'), { method: 'PUT', body: txt });
+    if (!put.ok) throw new Error('השחזור נכשל');
+    alert('השחזור הושלם ✓ האפליקציה תיטען מחדש.');
+    location.reload();
+  } catch (e) { alert('השחזור נכשל, ולא שונה כלום. בדקי חיבור לאינטרנט ונסי שוב.'); }
 }
 
 // סנכרון בזמן אמת
@@ -4046,6 +4186,7 @@ function startRealtimeSync() {
 }
 
 async function saveAll() {
+  if (!dataLoaded) { console.warn('השמירה נחסמה – הנתונים לא נטענו'); return; }
   // שמירה נפרדת לכל מקטע למניעת דריסת נתונים
   const saves = [
     fetch(fbUrl(`/ganData/dailyUpdates.json`), { method: 'PUT', body: JSON.stringify(dailyUpdates) }),
@@ -4067,6 +4208,7 @@ async function saveAll() {
 }
 
 async function saveSection(section, data) {
+  if (!dataLoaded) { console.warn('השמירה נחסמה – הנתונים לא נטענו'); return; }
   try {
     await fetch(fbUrl(`/ganData/${section}.json`), {
       method: 'PUT',
@@ -4079,7 +4221,9 @@ async function loadAll() {
   try {
     const res = await fetch(fbUrl(`/ganData.json`));
     const data = await res.json();
-    if (!data) return;
+    if (!res.ok || (data && data.error)) throw new Error('גישה נדחתה: ' + (data && data.error));
+    if (!data) { dataLoaded = true; return; }
+    dailyBackup(JSON.stringify(data)); // עותק של הנתונים כפי שהגיעו מהשרת
     if (data.attendance && typeof data.attendance === 'object' && !Array.isArray(data.attendance)) attendance = data.attendance;
     if (data.dailyUpdates)  dailyUpdates  = data.dailyUpdates;
     if (data.childProgress) childProgress = data.childProgress;
@@ -4117,7 +4261,11 @@ async function loadAll() {
     if (!data.childrenV4GenderSet) runChildrenMigrationV4();
     if (!data.childrenV5NamesFixed) runChildrenMigrationV5();
     CHILDREN.sort((a, b) => a.name.localeCompare(b.name, 'he'));
-  } catch(e) { console.error('טעינה נכשלה', e); }
+    dataLoaded = true;
+  } catch(e) {
+    console.error('טעינה נכשלה', e);
+    alert('לא הצלחנו לטעון את הנתונים. אין להזין נתונים כרגע – רענני את הדף. אם זה חוזר, פני למאיה.');
+  }
   hideLoadingOverlay();
 }
 
@@ -4269,7 +4417,7 @@ function signInWithGoogle() {
         document.getElementById('login-screen').style.display = 'none';
         document.getElementById('login-error-msg').style.display = 'none';
       } else {
-        firebase.auth().signOut();
+        firebase.auth().signOut().then(() => firebase.auth().signInAnonymously()).catch(() => {});
         document.getElementById('login-error-msg').style.display = 'block';
       }
     })
@@ -4338,6 +4486,7 @@ function checkLogin() {}
 async function init() {
   checkLoginStatus();
   showLoadingOverlay();
+  try { await ensureFirebaseAuth(); } catch (e) { console.error('חיבור ל-Firebase נכשל', e); }
   await loadAll();
   hideLoadingOverlay();
   setTodayDate();
@@ -4349,6 +4498,7 @@ async function init() {
   // רענון תור ההתחברות כל 50 דקות, כדי שהסנכרון בזמן אמת לא ינותק אחרי שעה
   setInterval(async () => {
     try {
+      if (!firebase.auth().currentUser) await firebase.auth().signInAnonymously();
       FB_TOKEN = await firebase.auth().currentUser.getIdToken(true);
       startRealtimeSync();
     } catch (e) { console.error('רענון token נכשל', e); }
